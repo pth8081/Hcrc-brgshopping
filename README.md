@@ -21,6 +21,9 @@ the real old MySQL schema.
 - **MySQL2** — only used by the one-off migration script, to read from the
   legacy database
 - **JWT** (`jsonwebtoken`) + `bcryptjs` — authentication
+- **Vanilla HTML/JS storefront** styled with **Tailwind CSS v4**, served as
+  static files by the same Express app — no separate frontend server/build
+  step at runtime, see [Frontend](#frontend-storefront) below
 
 ## Project layout
 
@@ -45,6 +48,13 @@ scripts/
 docs/
   MIGRATION.md            Step-by-step data migration guide
   SCHEMA-MAPPING.md        MySQL -> MSSQL type mapping cheat sheet
+public/                   Storefront static files, served directly by Express
+  css/style.css            Compiled Tailwind output (committed, see below)
+  js/                      Vanilla JS (ES modules): api.js, layout.js, icons.js,
+                          pages/*.js per page
+  *.html                   index, product, cart, checkout, orders, login,
+                          register, admin, page (static info pages), 404
+src/styles/tailwind.css    Tailwind source (@theme tokens + @layer components)
 ```
 
 ## Getting started
@@ -111,6 +121,40 @@ Send `Authorization: Bearer <token>` for user/admin routes.
 ### 5. Migrating data from the old MySQL database
 
 See [`docs/MIGRATION.md`](docs/MIGRATION.md).
+
+## Frontend (storefront)
+
+`public/` is a plain HTML/CSS/vanilla-JS storefront (no React/bundler) served
+by the same Express app as static files — open `http://localhost:3000/` once
+the server is running. It covers the customer flow (home, product, cart,
+checkout, orders, login/register) and a basic admin page.
+
+### Styling: Tailwind CSS v4, compiled — no runtime internet needed
+
+The stylesheet is written with Tailwind (`src/styles/tailwind.css`: `@theme`
+design tokens + `@layer components`) and **compiled ahead of time** to a
+plain, self-contained CSS file at `public/css/style.css`, which is committed
+to the repo. This matters if your server has no internet access:
+
+- The running app never downloads anything — no Tailwind CDN `<script>`, no
+  Google Fonts or any other remote `@import`. Fonts use a system font stack
+  (`Segoe UI` / system-ui / etc.), and `public/css/style.css` is a normal
+  static file Express serves as-is.
+- `tailwindcss` is a **devDependency** — only needed here, at build time, to
+  regenerate `style.css` after editing `src/styles/tailwind.css`. It is never
+  required (or imported) by `src/server.js` at runtime.
+- If you only change `public/*.html` or `public/js/*.js`, there's nothing to
+  rebuild — those are served directly.
+
+To rebuild the CSS after editing `src/styles/tailwind.css`:
+```bash
+npm run build:css     # one-off build (minified) -> public/css/style.css
+npm run watch:css     # rebuild on every save, while developing
+```
+Do this on a machine with internet access (to fetch the `tailwindcss`
+package once via `npm install`), then commit/deploy the resulting
+`public/css/style.css` — the offline server itself never needs to run
+Tailwind or reach the internet.
 
 ## Next steps
 

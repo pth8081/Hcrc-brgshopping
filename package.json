@@ -10,7 +10,9 @@
     "db:migrate": "npx sequelize-cli db:migrate",
     "db:migrate:undo": "npx sequelize-cli db:migrate:undo",
     "db:seed": "npx sequelize-cli db:seed:all",
-    "migrate:mysql-to-mssql": "node scripts/migrate-mysql-to-mssql.js"
+    "migrate:mysql-to-mssql": "node scripts/migrate-mysql-to-mssql.js",
+    "build:css": "tailwindcss -i ./src/styles/tailwind.css -o ./public/css/style.css --minify",
+    "watch:css": "tailwindcss -i ./src/styles/tailwind.css -o ./public/css/style.css --watch"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -25,7 +27,9 @@
     "tedious": "^18.2.1"
   },
   "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
     "nodemon": "^3.1.4",
-    "sequelize-cli": "^6.6.2"
+    "sequelize-cli": "^6.6.2",
+    "tailwindcss": "^4.3.3"
   }
 }
