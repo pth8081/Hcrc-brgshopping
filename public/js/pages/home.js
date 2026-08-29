@@ -1,12 +1,79 @@
 import { apiFetch, formatVND, thumbGradient, initials, getToken, showToast } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
+import { categoryIcon } from '../icons.js';
 
 const params = new URLSearchParams(location.search);
 const categoryId = params.get('category');
 const search = params.get('q');
+const isHomepage = !categoryId && !search;
+
+const HERO_SLIDES = [
+  { tone: 'tone-brand', eyebrow: 'Ưu đãi hôm nay', title: 'Mua sắm dễ dàng, giao nhanh tận nơi', body: 'Toàn bộ sản phẩm dưới đây lấy trực tiếp từ API Node.js chạy trên MSSQL.' },
+  { tone: 'tone-gold', eyebrow: 'Miễn phí vận chuyển', title: 'Freeship cho đơn hàng từ 500.000₫', body: 'Áp dụng cho tất cả sản phẩm, giao tận nơi trong 1–3 ngày làm việc.' },
+  { tone: 'tone-slate', eyebrow: 'Thành viên mới', title: 'Đăng ký tài khoản để lưu đơn hàng', body: 'Theo dõi trạng thái đơn hàng và mua sắm nhanh hơn ở những lần sau.' },
+];
 
 renderLayout({ activeCategoryId: categoryId });
 loadProducts();
+
+if (isHomepage) {
+  renderHero();
+  loadCategoryGrid();
+} else {
+  document.getElementById('hero-carousel').hidden = true;
+  document.getElementById('promo-banner').hidden = true;
+}
+
+function renderHero() {
+  const el = document.getElementById('hero-carousel');
+  el.innerHTML = `
+    ${HERO_SLIDES.map(
+      (s, i) => `
+      <div class="hero-slide ${s.tone} ${i === 0 ? 'active' : ''}" data-slide="${i}">
+        <span class="eyebrow2">${escapeHtml(s.eyebrow)}</span>
+        <h2>${escapeHtml(s.title)}</h2>
+        <p>${escapeHtml(s.body)}</p>
+      </div>`
+    ).join('')}
+    <div class="hero-dots">
+      ${HERO_SLIDES.map((_, i) => `<button data-dot="${i}" class="${i === 0 ? 'active' : ''}" aria-label="Slide ${i + 1}"></button>`).join('')}
+    </div>
+  `;
+
+  let current = 0;
+  const slides = el.querySelectorAll('.hero-slide');
+  const dots = el.querySelectorAll('.hero-dots button');
+  const show = (idx) => {
+    slides[current].classList.remove('active');
+    dots[current].classList.remove('active');
+    current = idx;
+    slides[current].classList.add('active');
+    dots[current].classList.add('active');
+  };
+  dots.forEach((dot, i) => dot.addEventListener('click', () => show(i)));
+  setInterval(() => show((current + 1) % slides.length), 5000);
+}
+
+async function loadCategoryGrid() {
+  const section = document.getElementById('catgrid-section');
+  const grid = document.getElementById('catgrid');
+  try {
+    const { data } = await apiFetch('/categories');
+    if (data.length === 0) return;
+    grid.innerHTML = data
+      .map(
+        (c) => `
+        <a class="cattile" href="/index.html?category=${c.id}">
+          <span class="icon-box">${categoryIcon(c.name)}</span>
+          <span>${escapeHtml(c.name)}</span>
+        </a>`
+      )
+      .join('');
+    section.hidden = false;
+  } catch {
+    section.hidden = true;
+  }
+}
 
 async function loadProducts() {
   const grid = document.getElementById('product-grid');
