@@ -199,8 +199,21 @@ async function migrateTable(mysqlConn, migration) {
         [BATCH_SIZE, offset]
       );
       const mapped = rows.map(migration.mapRow);
-      await migration.model.bulkCreate(mapped, { validate: false, ignoreDuplicates: true });
-      console.log(`[${migration.name}] migrated ${Math.min(offset + BATCH_SIZE, total)}/${total}`);
+
+      // MSSQL's Sequelize dialect has no `ignoreDuplicates` bulkCreate option
+      // (unlike MySQL/Postgres), so re-runs skip already-migrated ids manually.
+      const existing = await migration.model.findAll({
+        attributes: ['id'],
+        where: { id: mapped.map((r) => r.id) },
+        raw: true,
+      });
+      const existingIds = new Set(existing.map((r) => r.id));
+      const toInsert = mapped.filter((r) => !existingIds.has(r.id));
+
+      if (toInsert.length > 0) {
+        await migration.model.bulkCreate(toInsert, { validate: false });
+      }
+      console.log(`[${migration.name}] migrated ${Math.min(offset + BATCH_SIZE, total)}/${total} (${toInsert.length} new, ${mapped.length - toInsert.length} already present)`);
     }
   } finally {
     await sequelize.query(`SET IDENTITY_INSERT ${tableName} OFF`);

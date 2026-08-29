@@ -77,9 +77,9 @@ npm run db:seed       # optional: creates an admin@brgshopping.local user
 npm run dev           # http://localhost:3000
 ```
 
-In development (`NODE_ENV=development`, the default), `src/server.js` also
-calls `sequelize.sync({ alter: true })` on boot as a convenience — in
-production, rely on `npm run db:migrate` instead and set `NODE_ENV=production`.
+Schema changes always go through `npm run db:migrate` (add a new migration
+file rather than editing an applied one) — the app itself only calls
+`sequelize.authenticate()` on boot, it never auto-alters tables.
 
 ### 4. API overview
 

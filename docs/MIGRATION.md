@@ -4,6 +4,15 @@ This project's app runs entirely on MSSQL. The old brgshopping.vn MySQL
 database is only ever touched by the one-off script below — the running
 Express app never connects to MySQL.
 
+> **Run this before creating any real data in MSSQL.** The script preserves
+> the original MySQL primary keys (via `SET IDENTITY_INSERT ... ON`) so
+> foreign keys stay valid. If a row with that id already exists in the
+> target table — e.g. the demo admin from `npm run db:seed`, or products
+> created by hand through the API — the migration silently treats it as
+> "already migrated" and skips it instead of inserting your real data. Run
+> `npm run db:migrate` to create empty tables, then migrate immediately,
+> before seeding or using the app.
+
 ## Prerequisites
 
 1. A dump or live read access to the old MySQL database.
@@ -58,10 +67,11 @@ Express app never connects to MySQL.
 
 ## Notes
 
-- The script is idempotent-ish: it uses `ignoreDuplicates: true` on insert,
-  so re-running after fixing a mapping bug will skip rows already migrated
-  by primary key, not duplicate them (it won't update rows already inserted
-  — delete the partially-migrated rows first if you need a clean re-run).
+- The script is idempotent-ish: before each batch insert it checks which ids
+  already exist in the MSSQL table and skips them, so re-running after fixing
+  a mapping bug won't duplicate rows already migrated (it won't update rows
+  already inserted — delete the partially-migrated rows first if you need a
+  clean re-run of a given table).
 - Passwords: if the old app used a MySQL-side hashing scheme different from
   bcrypt (used by this app, see `src/controllers/auth.controller.js`), the
   migration script currently copies `passwordHash` verbatim. If the hash
