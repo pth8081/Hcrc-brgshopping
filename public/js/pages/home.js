@@ -1,4 +1,4 @@
-import { apiFetch, formatVND, thumbGradient, initials, getToken, showToast } from '../api.js';
+import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
 import { categoryIcon } from '../icons.js';
 
@@ -95,7 +95,7 @@ async function loadProducts() {
 
     if (data.length === 0) {
       grid.innerHTML = `
-        <div class="empty-state" style="grid-column:1/-1;">
+        <div class="empty-state col-span-full">
           <div class="big-icon">🛍️</div>
           <p>Chưa có sản phẩm nào ở đây.</p>
         </div>`;
@@ -103,6 +103,7 @@ async function loadProducts() {
     }
 
     grid.innerHTML = data.map(productCard).join('');
+    applyThumbGradients(grid);
     grid.querySelectorAll('[data-add]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -110,7 +111,7 @@ async function loadProducts() {
       });
     });
   } catch (err) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Không tải được sản phẩm: ${escapeHtml(err.message)}</div>`;
+    grid.innerHTML = `<div class="empty-state col-span-full">Không tải được sản phẩm: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -121,7 +122,7 @@ function productCard(p) {
   return `
     <div class="card">
       <a href="${href}">
-        <div class="thumb" style="background:${thumbGradient(p.name)}">
+        <div class="thumb" data-thumb-name="${escapeHtml(p.name)}">
           ${hasSale ? '<span class="sale-badge">Giảm giá</span>' : ''}
           ${escapeHtml(initials(p.name))}
         </div>

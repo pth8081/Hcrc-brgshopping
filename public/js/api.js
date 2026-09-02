@@ -65,6 +65,16 @@ export function thumbGradient(seed) {
   return `linear-gradient(135deg, hsl(${h1} 55% 45%), hsl(${h2} 60% 38%))`;
 }
 
+// Sets thumbnail backgrounds via the CSSOM (element.style.background = ...)
+// rather than a `style="..."` HTML attribute, so it works under a CSP with
+// no `style-src 'unsafe-inline'`. Call after inserting markup that contains
+// `.thumb[data-thumb-name]` elements.
+export function applyThumbGradients(root = document) {
+  root.querySelectorAll('[data-thumb-name]').forEach((el) => {
+    el.style.background = thumbGradient(el.dataset.thumbName);
+  });
+}
+
 export function initials(name) {
   return (name || '?')
     .split(' ')
@@ -95,4 +105,14 @@ export const ORDER_STATUS_LABEL = {
   shipping: 'Đang giao',
   completed: 'Hoàn tất',
   cancelled: 'Đã huỷ',
+};
+
+// Whitelist of the only class names ever produced for an order's status pill,
+// so an unexpected status value can never be interpolated into a class attribute.
+export const ORDER_STATUS_CLASS = {
+  pending: 'pill-pending',
+  confirmed: 'pill-confirmed',
+  shipping: 'pill-shipping',
+  completed: 'pill-completed',
+  cancelled: 'pill-cancelled',
 };

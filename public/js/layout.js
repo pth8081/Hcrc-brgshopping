@@ -150,7 +150,7 @@ async function loadDrawerCategories(activeCategoryId) {
       .concat(
         data.map(
           (c) =>
-            `<a class="cat-item" href="/index.html?category=${c.id}" style="${String(activeCategoryId) === String(c.id) ? 'background:rgba(255,255,255,.08)' : ''}">${categoryIcon(c.name)}<span>${escapeHtml(c.name)}</span></a>`
+            `<a class="cat-item${String(activeCategoryId) === String(c.id) ? ' bg-white/[0.08]' : ''}" href="/index.html?category=${c.id}">${categoryIcon(c.name)}<span>${escapeHtml(c.name)}</span></a>`
         )
       )
       .join('');

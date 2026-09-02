@@ -11,8 +11,8 @@
 
   <main>
     <div class="wrap">
-      <h1 style="font-size:22px; margin-bottom:6px;">Trang quản trị</h1>
-      <p style="color:var(--muted); margin-bottom:20px;">Quản lý danh mục, sản phẩm và đơn hàng.</p>
+      <h1 class="text-[22px] mb-1.5">Trang quản trị</h1>
+      <p class="text-muted mb-5">Quản lý danh mục, sản phẩm và đơn hàng.</p>
 
       <div id="admin-guard"></div>
 
@@ -24,7 +24,7 @@
         </div>
 
         <section id="tab-categories">
-          <div class="panel" style="margin-bottom:18px;">
+          <div class="panel mb-[18px]">
             <h3>Thêm danh mục</h3>
             <div class="form-error" id="category-error"></div>
             <form id="category-form" class="form-grid">
@@ -36,7 +36,7 @@
                 <label for="cat-image">Ảnh (URL, tuỳ chọn)</label>
                 <input id="cat-image" name="imageUrl" placeholder="https://...">
               </div>
-              <button class="btn btn-primary" type="submit" style="grid-column:1/-1; justify-self:start;">Thêm danh mục</button>
+              <button type="submit" class="btn btn-primary col-span-full justify-self-start">Thêm danh mục</button>
             </form>
           </div>
           <div class="panel">
@@ -46,7 +46,7 @@
         </section>
 
         <section id="tab-products" hidden>
-          <div class="panel" style="margin-bottom:18px;">
+          <div class="panel mb-[18px]">
             <h3>Thêm sản phẩm</h3>
             <div class="form-error" id="product-error"></div>
             <form id="product-form" class="form-grid">
@@ -74,11 +74,11 @@
                 <label for="p-sku">SKU (tuỳ chọn)</label>
                 <input id="p-sku" name="sku">
               </div>
-              <div class="form-row" style="grid-column:1/-1;">
+              <div class="form-row col-span-full">
                 <label for="p-desc">Mô tả</label>
                 <textarea id="p-desc" name="description" rows="2"></textarea>
               </div>
-              <button class="btn btn-primary" type="submit" style="grid-column:1/-1; justify-self:start;">Thêm sản phẩm</button>
+              <button type="submit" class="btn btn-primary col-span-full justify-self-start">Thêm sản phẩm</button>
             </form>
           </div>
           <div class="panel">

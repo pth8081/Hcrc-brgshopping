@@ -1,4 +1,4 @@
-import { apiFetch, formatVND, formatDate, requireAuth, ORDER_STATUS_LABEL } from '../api.js';
+import { apiFetch, formatVND, formatDate, requireAuth, ORDER_STATUS_LABEL, ORDER_STATUS_CLASS } from '../api.js';
 import { renderLayout, escapeHtml } from '../layout.js';
 
 renderLayout({});
@@ -17,7 +17,7 @@ async function loadOrders() {
         <div class="empty-state">
           <div class="big-icon">📦</div>
           <p>Bạn chưa có đơn hàng nào.</p>
-          <p style="margin-top:14px;"><a class="btn btn-primary" href="/index.html">Bắt đầu mua sắm</a></p>
+          <p class="mt-3.5"><a class="btn btn-primary" href="/index.html">Bắt đầu mua sắm</a></p>
         </div>`;
       return;
     }
@@ -29,11 +29,13 @@ async function loadOrders() {
 }
 
 function orderCard(order) {
+  const statusClass = ORDER_STATUS_CLASS[order.status] || 'pill-pending';
+  const statusLabel = ORDER_STATUS_LABEL[order.status] || escapeHtml(order.status);
   return `
     <div class="order-card">
       <div class="order-head">
         <span class="oid">Đơn #${order.id}</span>
-        <span class="pill pill-${order.status}">${ORDER_STATUS_LABEL[order.status] || order.status}</span>
+        <span class="pill ${statusClass}">${statusLabel}</span>
         <span class="date">${formatDate(order.createdAt)}</span>
       </div>
       ${order.items

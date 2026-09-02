@@ -8,7 +8,7 @@ const guardEl = document.getElementById('admin-guard');
 const appEl = document.getElementById('admin-app');
 
 if (!user) {
-  guardEl.innerHTML = `<div class="empty-state"><p>Bạn cần đăng nhập để truy cập trang quản trị.</p><p style="margin-top:14px;"><a class="btn btn-primary" href="/login.html?next=/admin.html">Đăng nhập</a></p></div>`;
+  guardEl.innerHTML = `<div class="empty-state"><p>Bạn cần đăng nhập để truy cập trang quản trị.</p><p class="mt-3.5"><a class="btn btn-primary" href="/login.html?next=/admin.html">Đăng nhập</a></p></div>`;
 } else if (user.role !== 'admin') {
   guardEl.innerHTML = `<div class="empty-state"><p>Tài khoản của bạn không có quyền quản trị.</p></div>`;
 } else {
@@ -61,7 +61,7 @@ async function loadCategories() {
               .join('')}
           </tbody>
         </table>`
-      : '<p style="color:var(--muted)">Chưa có danh mục nào.</p>';
+      : '<p class="text-muted">Chưa có danh mục nào.</p>';
 
     table.querySelectorAll('[data-del-cat]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -76,7 +76,7 @@ async function loadCategories() {
       });
     });
   } catch (err) {
-    table.innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+    table.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -104,7 +104,7 @@ async function loadProducts() {
               .join('')}
           </tbody>
         </table>`
-      : '<p style="color:var(--muted)">Chưa có sản phẩm nào.</p>';
+      : '<p class="text-muted">Chưa có sản phẩm nào.</p>';
 
     table.querySelectorAll('[data-del-prod]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -119,7 +119,7 @@ async function loadProducts() {
       });
     });
   } catch (err) {
-    table.innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+    table.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -151,7 +151,7 @@ async function loadOrders() {
               .join('')}
           </tbody>
         </table>`
-      : '<p style="color:var(--muted)">Chưa có đơn hàng nào.</p>';
+      : '<p class="text-muted">Chưa có đơn hàng nào.</p>';
 
     table.querySelectorAll('[data-order]').forEach((select) => {
       select.addEventListener('change', async () => {
@@ -168,7 +168,7 @@ async function loadOrders() {
       });
     });
   } catch (err) {
-    table.innerHTML = `<p style="color:var(--danger)">${escapeHtml(err.message)}</p>`;
+    table.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
   }
 }
 

@@ -156,6 +156,31 @@ package once via `npm install`), then commit/deploy the resulting
 `public/css/style.css` — the offline server itself never needs to run
 Tailwind or reach the internet.
 
+## Security
+
+- **XSS**: every place the frontend inserts dynamic data (product/category
+  names, user names, error messages, etc.) into the DOM via `innerHTML` goes
+  through `escapeHtml()` (`public/js/layout.js`). Order status is rendered
+  through a fixed whitelist map (`ORDER_STATUS_CLASS`/`ORDER_STATUS_LABEL` in
+  `public/js/api.js`) rather than interpolating the raw value into a class
+  name, so an unexpected status value can't break out of the attribute.
+- **CSP**: `src/app.js` sets a strict Content-Security-Policy via `helmet`
+  with every directive `'self'` or `'none'` — no `unsafe-inline` and no
+  `unsafe-eval` anywhere (`script-src-attr` is `'none'` too, blocking inline
+  `onclick="..."`-style handlers). This only works because the frontend has:
+  - no inline `<script>` blocks (every page uses `<script src="...">`),
+  - no `style="..."` attributes anywhere (all styling is Tailwind classes),
+  - per-element dynamic styling (e.g. a product thumbnail's gradient color)
+    is set via `element.style.background = value` in JS
+    (`applyThumbGradients()` in `public/js/api.js`), not a `style` attribute
+    — CSP's `style-src` only governs the HTML attribute/`<style>` elements,
+    not direct CSSOM property assignment, so this needs no CSP exception.
+  - `helmet`'s CSP is built with `useDefaults: false` and an explicit
+    directive list — its default directive set otherwise adds
+    `upgrade-insecure-requests`, which would make browsers rewrite every
+    request to HTTPS and break a plain-HTTP offline/internal deployment with
+    no TLS certificate.
+
 ## Next steps
 
 - Share the current brgshopping.vn source code and/or a MySQL schema dump so

@@ -1,4 +1,4 @@
-import { apiFetch, formatVND, thumbGradient, initials, requireAuth, showToast } from '../api.js';
+import { apiFetch, formatVND, applyThumbGradients, initials, requireAuth, showToast } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
 
 renderLayout({});
@@ -17,7 +17,7 @@ async function loadCart() {
         <div class="empty-state">
           <div class="big-icon">🛒</div>
           <p>Giỏ hàng của bạn đang trống.</p>
-          <p style="margin-top:14px;"><a class="btn btn-primary" href="/index.html">Tiếp tục mua sắm</a></p>
+          <p class="mt-3.5"><a class="btn btn-primary" href="/index.html">Tiếp tục mua sắm</a></p>
         </div>`;
       return;
     }
@@ -34,10 +34,11 @@ async function loadCart() {
           <div class="summary-row"><span>Tạm tính</span><span class="val">${formatVND(total)}</span></div>
           <div class="summary-row"><span>Vận chuyển</span><span class="val">${total >= 500000 ? 'Miễn phí' : formatVND(20000)}</span></div>
           <div class="summary-row total"><span>Tổng cộng</span><span class="val">${formatVND(total >= 500000 ? total : total + 20000)}</span></div>
-          <a class="btn btn-primary btn-block" style="margin-top:16px;" href="/checkout.html">Tiến hành thanh toán</a>
+          <a class="btn btn-primary btn-block mt-4" href="/checkout.html">Tiến hành thanh toán</a>
         </div>
       </div>`;
 
+    applyThumbGradients(el);
     wireRowActions();
   } catch (err) {
     el.innerHTML = `<div class="empty-state">Không tải được giỏ hàng: ${escapeHtml(err.message)}</div>`;
@@ -48,9 +49,9 @@ function cartRow(item) {
   const p = item.product;
   return `
     <div class="cart-row" data-item="${item.id}">
-      <div class="thumb" style="background:${thumbGradient(p?.name || 'SP')}">${escapeHtml(initials(p?.name || 'SP'))}</div>
+      <div class="thumb" data-thumb-name="${escapeHtml(p?.name || 'SP')}">${escapeHtml(initials(p?.name || 'SP'))}</div>
       <div>
-        <a href="/product.html?slug=${p?.slug || ''}" class="cart-row-name">${escapeHtml(p?.name || 'Sản phẩm đã bị xoá')}</a>
+        <a href="/product.html?slug=${encodeURIComponent(p?.slug || '')}" class="cart-row-name">${escapeHtml(p?.name || 'Sản phẩm đã bị xoá')}</a>
         <div class="cart-row-price">${formatVND(item.priceAtAdd)} / sản phẩm</div>
       </div>
       <div class="qty">
@@ -58,7 +59,7 @@ function cartRow(item) {
         <span class="qty-value">${item.quantity}</span>
         <button type="button" data-step="1">+</button>
       </div>
-      <div style="display:flex; align-items:center; gap:14px;">
+      <div class="flex items-center gap-3.5">
         <div class="cart-row-total">${formatVND(Number(item.priceAtAdd) * item.quantity)}</div>
         <button class="btn btn-ghost btn-sm" data-remove title="Xoá">✕</button>
       </div>

@@ -17,7 +17,7 @@ async function loadCheckout() {
         <div class="empty-state">
           <div class="big-icon">🧾</div>
           <p>Giỏ hàng trống, không có gì để thanh toán.</p>
-          <p style="margin-top:14px;"><a class="btn btn-primary" href="/index.html">Về trang chủ</a></p>
+          <p class="mt-3.5"><a class="btn btn-primary" href="/index.html">Về trang chủ</a></p>
         </div>`;
       return;
     }

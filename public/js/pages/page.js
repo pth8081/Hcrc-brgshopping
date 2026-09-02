@@ -19,8 +19,8 @@ if (page) {
   document.title = `${page.title} — BRG Shopping`;
   el.innerHTML = `
     <div class="big-icon">📄</div>
-    <h1 style="font-size:20px; margin-bottom:10px; color:var(--ink);">${escapeHtml(page.title)}</h1>
-    <p style="max-width:52ch; margin:0 auto;">${escapeHtml(page.body)}</p>`;
+    <h1 class="text-[20px] mb-2.5 text-ink">${escapeHtml(page.title)}</h1>
+    <p class="max-w-[52ch] mx-auto">${escapeHtml(page.body)}</p>`;
 } else {
   el.innerHTML = `<div class="big-icon">🧭</div><p>Không tìm thấy trang này.</p>`;
 }

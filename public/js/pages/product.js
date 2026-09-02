@@ -1,4 +1,4 @@
-import { apiFetch, formatVND, thumbGradient, initials, getToken, showToast } from '../api.js';
+import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
 
 const slug = new URLSearchParams(location.search).get('slug');
@@ -27,25 +27,25 @@ async function loadProduct() {
     const inStock = p.stockQuantity > 0;
 
     detailEl.innerHTML = `
-      <div class="panel" style="display:grid; grid-template-columns:340px 1fr; gap:28px;">
-        <div class="thumb" style="background:${thumbGradient(p.name)}; border-radius:12px; font-size:56px; position:relative;">
+      <div class="panel grid grid-cols-[340px_1fr] gap-7">
+        <div class="thumb rounded-xl text-[56px] relative" data-thumb-name="${escapeHtml(p.name)}">
           ${hasSale ? '<span class="sale-badge">Giảm giá</span>' : ''}
           ${escapeHtml(initials(p.name))}
         </div>
         <div>
-          <h1 style="font-size:24px;">${escapeHtml(p.name)}</h1>
-          ${p.sku ? `<p style="color:var(--faint); font-size:13px; margin-top:6px;">SKU: ${escapeHtml(p.sku)}</p>` : ''}
-          <div style="display:flex; align-items:baseline; gap:12px; margin:16px 0;">
-            <span style="font:800 26px 'Be Vietnam Pro'; color:var(--accent-dark);">${formatVND(displayPrice)}</span>
-            ${hasSale ? `<span class="price-old" style="font-size:15px;">${formatVND(p.price)}</span>` : ''}
+          <h1 class="text-[24px]">${escapeHtml(p.name)}</h1>
+          ${p.sku ? `<p class="text-faint text-[13px] mt-1.5">SKU: ${escapeHtml(p.sku)}</p>` : ''}
+          <div class="flex items-baseline gap-3 my-4">
+            <span class="text-[26px] font-extrabold text-brand-dark">${formatVND(displayPrice)}</span>
+            ${hasSale ? `<span class="price-old text-[15px]">${formatVND(p.price)}</span>` : ''}
           </div>
-          <p style="color:var(--muted); max-width:60ch;">${escapeHtml(p.description || 'Chưa có mô tả cho sản phẩm này.')}</p>
+          <p class="text-muted max-w-[60ch]">${escapeHtml(p.description || 'Chưa có mô tả cho sản phẩm này.')}</p>
 
-          <div style="margin:20px 0; display:flex; align-items:center; gap:14px;">
+          <div class="my-5 flex items-center gap-3.5">
             <span class="pill ${inStock ? 'pill-completed' : 'pill-cancelled'}">${inStock ? `Còn ${p.stockQuantity} sản phẩm` : 'Hết hàng'}</span>
           </div>
 
-          <div style="display:flex; align-items:center; gap:12px;">
+          <div class="flex items-center gap-3">
             <div class="qty" id="qty-picker">
               <button type="button" data-step="-1">−</button>
               <span id="qty-value">1</span>
@@ -57,6 +57,7 @@ async function loadProduct() {
       </div>
     `;
 
+    applyThumbGradients(detailEl);
     wireQty();
     document.getElementById('add-btn')?.addEventListener('click', () => addToCart(p.id));
   } catch (err) {
