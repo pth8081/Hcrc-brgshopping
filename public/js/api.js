@@ -116,3 +116,21 @@ export const ORDER_STATUS_CLASS = {
   completed: 'pill-completed',
   cancelled: 'pill-cancelled',
 };
+
+export const PAYMENT_STATUS_LABEL = {
+  unpaid: 'Chưa thanh toán',
+  paid: 'Đã thanh toán',
+  refunded: 'Đã hoàn tiền',
+};
+
+export const PAYMENT_STATUS_CLASS = {
+  unpaid: 'pill-pending',
+  paid: 'pill-completed',
+  refunded: 'pill-shipping',
+};
+
+export const PAYMENT_METHOD_LABEL = {
+  cod: 'Thanh toán khi nhận hàng (COD)',
+  bank_transfer: 'Chuyển khoản ngân hàng',
+  e_wallet: 'Ví điện tử',
+};

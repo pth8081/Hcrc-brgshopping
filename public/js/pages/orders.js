@@ -1,4 +1,4 @@
-import { apiFetch, formatVND, formatDate, requireAuth, ORDER_STATUS_LABEL, ORDER_STATUS_CLASS } from '../api.js';
+import { apiFetch, formatVND, formatDate, requireAuth, showToast, ORDER_STATUS_LABEL, ORDER_STATUS_CLASS } from '../api.js';
 import { renderLayout, escapeHtml } from '../layout.js';
 
 renderLayout({});
@@ -23,6 +23,18 @@ async function loadOrders() {
     }
 
     el.innerHTML = data.map(orderCard).join('');
+    el.querySelectorAll('[data-cancel]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Bạn chắc chắn muốn huỷ đơn hàng này?')) return;
+        try {
+          await apiFetch(`/orders/${btn.dataset.cancel}/cancel`, { method: 'PUT' });
+          showToast('Đã huỷ đơn hàng');
+          loadOrders();
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      });
+    });
   } catch (err) {
     el.innerHTML = `<div class="empty-state">Không tải được đơn hàng: ${escapeHtml(err.message)}</div>`;
   }
@@ -48,5 +60,9 @@ function orderCard(order) {
         )
         .join('')}
       <div class="order-total">${formatVND(order.totalAmount)}</div>
+      <div class="flex gap-2.5 flex-wrap mt-3">
+        <a class="btn btn-outline btn-sm" href="/order-detail.html?id=${order.id}">Xem chi tiết</a>
+        ${order.status === 'pending' ? `<button class="btn btn-ghost btn-sm" data-cancel="${order.id}">Huỷ đơn</button>` : ''}
+      </div>
     </div>`;
 }

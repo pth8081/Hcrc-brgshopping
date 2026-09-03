@@ -9,6 +9,7 @@ const Cart = require('./cart.model');
 const CartItem = require('./cartItem.model');
 const Order = require('./order.model');
 const OrderItem = require('./orderItem.model');
+const OrderStatusHistory = require('./orderStatusHistory.model');
 
 // --- Associations ---
 User.hasMany(Address, { foreignKey: 'userId', as: 'addresses', onDelete: 'CASCADE' });
@@ -38,6 +39,9 @@ Order.hasMany(OrderItem, { foreignKey: 'orderId', as: 'items', onDelete: 'CASCAD
 OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 OrderItem.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 
+Order.hasMany(OrderStatusHistory, { foreignKey: 'orderId', as: 'history', onDelete: 'CASCADE' });
+OrderStatusHistory.belongsTo(Order, { foreignKey: 'orderId' });
+
 module.exports = {
   sequelize,
   User,
@@ -49,4 +53,5 @@ module.exports = {
   CartItem,
   Order,
   OrderItem,
+  OrderStatusHistory,
 };

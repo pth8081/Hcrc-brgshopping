@@ -53,6 +53,7 @@ async function loadCheckout() {
                 <option value="e_wallet">Ví điện tử</option>
               </select>
             </div>
+            <div id="payment-info" class="info-note"></div>
             <div class="form-row">
               <label for="note">Ghi chú (tuỳ chọn)</label>
               <textarea id="note" name="note" rows="2" placeholder="Giao giờ hành chính..."></textarea>
@@ -79,8 +80,27 @@ async function loadCheckout() {
       </div>`;
 
     document.getElementById('checkout-form').addEventListener('submit', (e) => submitOrder(e));
+    document.getElementById('paymentMethod').addEventListener('change', updatePaymentInfo);
+    updatePaymentInfo();
   } catch (err) {
     el.innerHTML = `<div class="empty-state">Không tải được giỏ hàng: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+const PAYMENT_INFO = {
+  bank_transfer:
+    'Chuyển khoản tới: <strong>Ngân hàng ABC — STK 0123456789 — CTY TNHH BRG</strong>. Nội dung: số điện thoại của bạn. Đơn hàng sẽ được xác nhận thanh toán sau khi cửa hàng nhận được tiền.',
+  e_wallet: 'Sau khi đặt hàng, nhân viên sẽ liên hệ gửi mã QR ví điện tử để thanh toán.',
+};
+
+function updatePaymentInfo() {
+  const method = document.getElementById('paymentMethod').value;
+  const box = document.getElementById('payment-info');
+  if (PAYMENT_INFO[method]) {
+    box.innerHTML = PAYMENT_INFO[method];
+    box.classList.add('show');
+  } else {
+    box.classList.remove('show');
   }
 }
 
@@ -90,21 +110,19 @@ async function submitOrder(e) {
   errorEl.classList.remove('show');
 
   const fd = new FormData(e.target);
-  const note = [
-    `Người nhận: ${fd.get('recipientName')} (${fd.get('phone')})`,
-    `Địa chỉ: ${fd.get('address')}`,
-    fd.get('note') ? `Ghi chú: ${fd.get('note')}` : null,
-  ]
-    .filter(Boolean)
-    .join(' — ');
-
   const submitBtn = e.target.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
 
   try {
     const { data: order } = await apiFetch('/orders/checkout', {
       method: 'POST',
-      body: JSON.stringify({ paymentMethod: fd.get('paymentMethod'), note }),
+      body: JSON.stringify({
+        recipientName: fd.get('recipientName'),
+        phone: fd.get('phone'),
+        addressLine: fd.get('address'),
+        paymentMethod: fd.get('paymentMethod'),
+        note: fd.get('note') || undefined,
+      }),
     });
     refreshCartCount();
     showToast(`Đặt hàng thành công — mã đơn #${order.id}`);

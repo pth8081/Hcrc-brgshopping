@@ -130,13 +130,14 @@ async function loadOrders() {
 
     table.innerHTML = data.length
       ? `<table class="admin-table">
-          <thead><tr><th>Mã đơn</th><th>Ngày</th><th>Tổng tiền</th><th>Trạng thái</th></tr></thead>
+          <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Ngày</th><th>Tổng tiền</th><th>Trạng thái</th><th></th></tr></thead>
           <tbody>
             ${data
               .map(
                 (o) => `
               <tr>
                 <td>#${o.id}</td>
+                <td>${escapeHtml(o.User?.fullName || '—')}${o.User?.phone ? `<br><span class="text-faint text-xs">${escapeHtml(o.User.phone)}</span>` : ''}</td>
                 <td>${formatDate(o.createdAt)}</td>
                 <td>${formatVND(o.totalAmount)}</td>
                 <td>
@@ -146,6 +147,7 @@ async function loadOrders() {
                       .join('')}
                   </select>
                 </td>
+                <td><a class="btn btn-outline btn-sm" href="/order-detail.html?id=${o.id}">Xem</a></td>
               </tr>`
               )
               .join('')}

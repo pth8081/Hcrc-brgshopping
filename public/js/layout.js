@@ -1,4 +1,4 @@
-import { getUser, clearSession, apiFetch, getToken, showToast } from './api.js';
+import { getUser, clearSession, apiFetch, getToken, showToast, formatDate, ORDER_STATUS_LABEL } from './api.js';
 import { categoryIcon } from './icons.js';
 
 const ICON = {
@@ -29,7 +29,10 @@ export async function renderLayout({ activeCategoryId } = {}) {
         <button class="icon-btn" id="drawer-open" aria-label="Mở menu">${ICON.hamburger}</button>
         <a class="logo" href="/index.html">${ICON.bag}BRG<span>Shopping</span></a>
         <div class="nav-icons">
-          <button class="icon-btn" id="bell-btn" aria-label="Thông báo">${ICON.bell}</button>
+          <div class="dropdown-anchor">
+            <button class="icon-btn" id="bell-btn" aria-label="Thông báo">${ICON.bell}<span class="notif-dot" id="notif-dot"></span></button>
+            <div class="notif-dropdown" id="notif-dropdown"></div>
+          </div>
           <button class="icon-btn" id="search-btn" aria-label="Tìm kiếm">${ICON.search}</button>
           <a class="icon-btn cart-badge" href="/cart.html" aria-label="Giỏ hàng">${ICON.cart}<span class="count" id="cart-count">0</span></a>
         </div>
@@ -93,12 +96,17 @@ export async function renderLayout({ activeCategoryId } = {}) {
 
   document.body.insertAdjacentHTML(
     'beforeend',
-    `<button class="chat-fab" id="chat-fab" aria-label="Chat hỗ trợ">${ICON.chat}</button>`
+    `<button class="chat-fab print:hidden" id="chat-fab" aria-label="Chat hỗ trợ">${ICON.chat}</button>`
   );
+
+  // Printing an invoice (order-detail.js) should never include chrome.
+  document.getElementById('site-header').classList.add('print:hidden');
+  document.getElementById('site-footer').classList.add('print:hidden');
 
   wireHeader();
   loadDrawerCategories(activeCategoryId);
   refreshCartCount();
+  loadNotifications();
 }
 
 function wireHeader() {
@@ -127,7 +135,16 @@ function wireHeader() {
     window.location.href = `/index.html${q ? `?q=${encodeURIComponent(q)}` : ''}`;
   });
 
-  document.getElementById('bell-btn').addEventListener('click', () => showToast('Bạn chưa có thông báo mới'));
+  document.getElementById('bell-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleNotifDropdown();
+  });
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('notif-dropdown');
+    if (dropdown?.classList.contains('open') && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
+  });
   document.getElementById('chat-fab').addEventListener('click', () => showToast('Tính năng chat đang được phát triển'));
 
   const logoutLink = document.getElementById('logout-link');
@@ -157,6 +174,59 @@ async function loadDrawerCategories(activeCategoryId) {
   } catch {
     nav.innerHTML = '';
   }
+}
+
+const NOTIF_SEEN_KEY = 'brg_notif_last_seen';
+let cachedNotifications = [];
+
+async function loadNotifications() {
+  const dot = document.getElementById('notif-dot');
+  if (!dot) return;
+  if (!getToken()) {
+    dot.classList.add('hidden');
+    return;
+  }
+  try {
+    const { data } = await apiFetch('/orders/notifications');
+    cachedNotifications = data;
+    const lastSeen = Number(localStorage.getItem(NOTIF_SEEN_KEY) || 0);
+    const hasUnread = data.some((n) => new Date(n.createdAt).getTime() > lastSeen);
+    dot.classList.toggle('hidden', !hasUnread);
+  } catch {
+    dot.classList.add('hidden');
+  }
+}
+
+function toggleNotifDropdown() {
+  if (!getToken()) {
+    window.location.href = '/login.html';
+    return;
+  }
+  const dropdown = document.getElementById('notif-dropdown');
+  const isOpening = !dropdown.classList.contains('open');
+  dropdown.classList.toggle('open');
+  if (!isOpening) return;
+
+  dropdown.innerHTML = cachedNotifications.length
+    ? cachedNotifications
+        .map(
+          (n) => `
+        <a class="notif-item" href="/order-detail.html?id=${n.orderId}">
+          ${escapeHtml(notificationText(n))}
+          <span class="date">${formatDate(n.createdAt)}</span>
+        </a>`
+        )
+        .join('')
+    : '<div class="notif-empty">Bạn chưa có thông báo nào.</div>';
+
+  localStorage.setItem(NOTIF_SEEN_KEY, String(Date.now()));
+  document.getElementById('notif-dot').classList.add('hidden');
+}
+
+function notificationText(n) {
+  if (n.status) return `Đơn #${n.orderId}: ${ORDER_STATUS_LABEL[n.status] || n.status}`;
+  if (n.paymentStatus) return `Đơn #${n.orderId}: cập nhật thanh toán`;
+  return `Đơn #${n.orderId}: có cập nhật mới`;
 }
 
 export async function refreshCartCount() {
