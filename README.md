@@ -1,25 +1,29 @@
 # BRG Shopping — Node.js + MSSQL rebuild
 
-Rebuild of the brgshopping.vn e-commerce backend on Node.js (Express +
-Sequelize) targeting **MSSQL** instead of the original MySQL, with a
-migration script to bring over the old data.
+Rebuild of the brgshopping.vn storefront on Node.js (Express + Sequelize)
+targeting **MSSQL**, with a migration script that pulls catalog/customer/
+order data over from the live site's real backend.
 
 ## Status
 
-This is a **starter scaffold**, not a 1:1 clone of the live site yet. It
-covers the core e-commerce domain — auth, categories, products, cart,
-orders, a minimal admin surface — as a foundation to extend once the real
-site's feature list / current source code is available. See
-[`docs/MIGRATION.md`](docs/MIGRATION.md) for adapting the data migration to
-the real old MySQL schema.
+This is a **storefront scaffold**, not a 1:1 clone of the live site. The
+real brgshopping.vn backend turned out to be [Odoo](https://www.odoo.com/)
+(a full ERP, running on PostgreSQL — 460 tables covering accounting,
+inventory, HR, etc., heavily customized for BRG's grocery/delivery
+business) rather than a small custom app. Rebuilding all of Odoo was out of
+scope; this project covers the storefront-facing slice — auth, categories,
+products, cart, orders, a minimal admin surface — and the ETL script pulls
+just that slice (catalog, customers, orders) out of the real Odoo database.
+See [`docs/MIGRATION.md`](docs/MIGRATION.md) for exactly what's covered and
+what's intentionally left in Odoo.
 
 ## Tech stack
 
 - **Node.js + Express** — REST API
 - **Sequelize** (dialect `mssql` via `tedious`) — ORM / migrations for the
   target database
-- **MySQL2** — only used by the one-off migration script, to read from the
-  legacy database
+- **pg** (node-postgres) — only used by the one-off migration script, to
+  read from the live Odoo/PostgreSQL database
 - **JWT** (`jsonwebtoken`) + `bcryptjs` — authentication
 - **Vanilla HTML/JS storefront** styled with **Tailwind CSS v4**, served as
   static files by the same Express app — no separate frontend server/build
@@ -33,7 +37,7 @@ src/
   server.js              Entry point: connects DB, starts HTTP server
   config/
     db.js                 Sequelize connection to MSSQL (the app's DB)
-    mysqlSource.js         MySQL connection config (migration script only)
+    odooSource.js           PostgreSQL connection config (migration script only)
     sequelize-cli.config.js  Config consumed by `sequelize-cli` migrations
   models/                 Sequelize models: User, Address, Category,
                           Product, ProductImage, Cart, CartItem, Order,
@@ -44,10 +48,10 @@ src/
   migrations/             sequelize-cli migrations that create the MSSQL schema
   seeders/                Demo admin user
 scripts/
-  migrate-mysql-to-mssql.js   ETL template: old MySQL -> this MSSQL schema
+  migrate-odoo-to-mssql.js   ETL: live Odoo/PostgreSQL -> this MSSQL schema
 docs/
-  MIGRATION.md            Step-by-step data migration guide
-  SCHEMA-MAPPING.md        MySQL -> MSSQL type mapping cheat sheet
+  MIGRATION.md            What's migrated from Odoo, and how
+  SCHEMA-MAPPING.md        Odoo/PostgreSQL -> MSSQL type/value conversion notes
 public/                   Storefront static files, served directly by Express
   css/style.css            Compiled Tailwind output (committed, see below)
   js/                      Vanilla JS (ES modules): api.js, layout.js, icons.js,
@@ -118,7 +122,7 @@ All endpoints are under `/api`.
 
 Send `Authorization: Bearer <token>` for user/admin routes.
 
-### 5. Migrating data from the old MySQL database
+### 5. Migrating data from the live Odoo database
 
 See [`docs/MIGRATION.md`](docs/MIGRATION.md).
 
@@ -183,10 +187,12 @@ Tailwind or reach the internet.
 
 ## Next steps
 
-- Share the current brgshopping.vn source code and/or a MySQL schema dump so
-  the models, migrations and the ETL script's column mappings can be made
-  exact instead of best-guess placeholders.
-- List out the real feature set (promotions/vouchers, product reviews,
-  wishlists, multiple product variants/options, payment gateway integration,
-  shipping providers, CMS pages, admin dashboard, etc.) so it can be scoped
+- Build a "forgot password" flow before relying on migrated customer
+  accounts — see the **Passwords** note in `docs/MIGRATION.md`.
+- Decide on real payment-method mapping (`migrateOrders()` currently
+  defaults every migrated order to `cod`) and review the order-status
+  mapping (`mapOrderStatus()`) against the real fulfillment workflow.
+- List out the rest of the real feature set worth porting from Odoo's
+  website/e-commerce modules (product variants/attributes, pricelists,
+  vouchers/promotions, wishlists, reviews, CMS pages) so it can be scoped
   into further modules on top of this foundation.

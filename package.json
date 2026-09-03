@@ -1,7 +1,7 @@
 {
   "name": "brgshopping-nodejs-mssql",
   "version": "0.1.0",
-  "description": "BRG Shopping rebuild: Node.js + Express + MSSQL (migrated from MySQL)",
+  "description": "BRG Shopping rebuild: Node.js + Express + MSSQL (migrated from the live Odoo/PostgreSQL database)",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
@@ -10,7 +10,7 @@
     "db:migrate": "npx sequelize-cli db:migrate",
     "db:migrate:undo": "npx sequelize-cli db:migrate:undo",
     "db:seed": "npx sequelize-cli db:seed:all",
-    "migrate:mysql-to-mssql": "node scripts/migrate-mysql-to-mssql.js",
+    "migrate:odoo": "node scripts/migrate-odoo-to-mssql.js",
     "build:css": "tailwindcss -i ./src/styles/tailwind.css -o ./public/css/style.css --minify",
     "watch:css": "tailwindcss -i ./src/styles/tailwind.css -o ./public/css/style.css --watch"
   },
@@ -22,7 +22,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "mysql2": "^3.11.0",
+    "pg": "^8.23.0",
     "sequelize": "^6.37.3",
     "slugify": "^1.6.6",
     "tedious": "^18.2.1"
