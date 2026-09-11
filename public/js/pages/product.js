@@ -1,5 +1,6 @@
-import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast } from '../api.js';
+import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast, pushRecentlyViewed } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
+import { renderProductGrid } from '../productGrid.js';
 
 const slug = new URLSearchParams(location.search).get('slug');
 const detailEl = document.getElementById('product-detail');
@@ -60,8 +61,43 @@ async function loadProduct() {
     applyThumbGradients(detailEl);
     wireQty();
     document.getElementById('add-btn')?.addEventListener('click', () => addToCart(p.id));
+
+    pushRecentlyViewed(p);
+    apiFetch(`/products/${p.id}/view`, { method: 'POST' }).catch(() => {});
+    loadRelated(p);
+    loadAlsoBought(p);
   } catch (err) {
     detailEl.innerHTML = emptyState(`Không tải được sản phẩm: ${err.message}`);
+  }
+}
+
+async function loadRelated(product) {
+  const section = document.getElementById('related-section');
+  const grid = document.getElementById('related-grid');
+  if (!product.categoryId) return;
+
+  try {
+    const { data } = await apiFetch(`/products?categoryId=${product.categoryId}&limit=9`);
+    const related = data.filter((p) => p.id !== product.id).slice(0, 8);
+    if (related.length === 0) return;
+    renderProductGrid(grid, related);
+    section.hidden = false;
+  } catch {
+    section.hidden = true;
+  }
+}
+
+async function loadAlsoBought(product) {
+  const section = document.getElementById('also-bought-section');
+  const grid = document.getElementById('also-bought-grid');
+
+  try {
+    const { data } = await apiFetch(`/products/${product.id}/also-bought?limit=8`);
+    if (data.length === 0) return;
+    renderProductGrid(grid, data);
+    section.hidden = false;
+  } catch {
+    section.hidden = true;
   }
 }
 

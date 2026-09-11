@@ -21,4 +21,20 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireAdmin };
+// Attaches req.user when a valid token is present, but never rejects the
+// request — for endpoints (view/search logging) that behave for guests too
+// and only personalize when the visitor happens to be logged in.
+function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (token) {
+    try {
+      req.user = verifyToken(token);
+    } catch {
+      // Invalid/expired token on an optional-auth route: proceed as a guest.
+    }
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireAdmin, optionalAuth };

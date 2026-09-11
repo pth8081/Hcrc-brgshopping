@@ -8,5 +8,7 @@ router.use('/cart', require('./cart.routes'));
 router.use('/orders', require('./order.routes'));
 router.use('/news', require('./news.routes'));
 router.use('/promotions', require('./promotion.routes'));
+router.use('/recommendations', require('./recommendation.routes'));
+router.use('/search', require('./search.routes'));
 
 module.exports = router;

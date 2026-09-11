@@ -12,6 +12,8 @@ const OrderItem = require('./orderItem.model');
 const OrderStatusHistory = require('./orderStatusHistory.model');
 const News = require('./news.model');
 const Promotion = require('./promotion.model');
+const ProductView = require('./productView.model');
+const SearchLog = require('./searchLog.model');
 
 // --- Associations ---
 User.hasMany(Address, { foreignKey: 'userId', as: 'addresses', onDelete: 'CASCADE' });
@@ -50,6 +52,13 @@ Promotion.hasMany(Order, { foreignKey: 'promotionId' });
 User.hasMany(News, { foreignKey: 'authorUserId', as: 'news' });
 News.belongsTo(User, { foreignKey: 'authorUserId', as: 'author' });
 
+User.hasMany(ProductView, { foreignKey: 'userId' });
+ProductView.belongsTo(User, { foreignKey: 'userId' });
+ProductView.belongsTo(Product, { foreignKey: 'productId' });
+
+User.hasMany(SearchLog, { foreignKey: 'userId' });
+SearchLog.belongsTo(User, { foreignKey: 'userId' });
+
 module.exports = {
   sequelize,
   User,
@@ -64,4 +73,6 @@ module.exports = {
   OrderStatusHistory,
   News,
   Promotion,
+  ProductView,
+  SearchLog,
 };

@@ -1,7 +1,8 @@
-import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast } from '../api.js';
-import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
+import { apiFetch, getRecentlyViewed, getToken, applyThumbGradients } from '../api.js';
+import { renderLayout, escapeHtml } from '../layout.js';
 import { categoryIcon } from '../icons.js';
 import { promoCard } from '../promoHelpers.js';
+import { renderProductGrid, recentlyViewedCard } from '../productGrid.js';
 
 const params = new URLSearchParams(location.search);
 const categoryId = params.get('category');
@@ -21,6 +22,9 @@ if (isHomepage) {
   renderHero();
   loadCategoryGrid();
   loadCampaigns();
+  loadForYou();
+  loadBestSellers();
+  renderRecentlyViewed();
 } else {
   document.getElementById('hero-carousel').hidden = true;
   document.getElementById('promo-banner').hidden = true;
@@ -37,6 +41,44 @@ async function loadCampaigns() {
   } catch {
     section.hidden = true;
   }
+}
+
+async function loadForYou() {
+  const section = document.getElementById('foryou-section');
+  const grid = document.getElementById('foryou-grid');
+  if (!getToken()) return;
+
+  try {
+    const { data } = await apiFetch('/recommendations/for-you?limit=8');
+    if (data.length === 0) return;
+    renderProductGrid(grid, data);
+    section.hidden = false;
+  } catch {
+    section.hidden = true;
+  }
+}
+
+async function loadBestSellers() {
+  const section = document.getElementById('bestseller-section');
+  const grid = document.getElementById('bestseller-grid');
+  try {
+    const { data } = await apiFetch('/products/best-sellers?limit=8');
+    if (data.length === 0) return;
+    renderProductGrid(grid, data);
+    section.hidden = false;
+  } catch {
+    section.hidden = true;
+  }
+}
+
+function renderRecentlyViewed() {
+  const section = document.getElementById('recent-section');
+  const grid = document.getElementById('recent-grid');
+  const items = getRecentlyViewed();
+  if (items.length === 0) return;
+  grid.innerHTML = items.map(recentlyViewedCard).join('');
+  applyThumbGradients(grid);
+  section.hidden = false;
 }
 
 function renderHero() {
@@ -117,63 +159,27 @@ async function loadProducts() {
       return;
     }
 
-    grid.innerHTML = data.map(productCard).join('');
-    applyThumbGradients(grid);
-    grid.querySelectorAll('[data-add]').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        addToCart(btn.dataset.add, btn);
-      });
-    });
+    const ordered = isHomepage && getToken() ? await personalizeOrder(data) : data;
+    renderProductGrid(grid, ordered);
   } catch (err) {
     grid.innerHTML = `<div class="empty-state col-span-full">Không tải được sản phẩm: ${escapeHtml(err.message)}</div>`;
   }
 }
 
-function productCard(p) {
-  const hasSale = p.salePrice && Number(p.salePrice) < Number(p.price);
-  const displayPrice = hasSale ? p.salePrice : p.price;
-  const href = `/product.html?slug=${encodeURIComponent(p.slug)}`;
-  return `
-    <div class="card">
-      <a href="${href}">
-        <div class="thumb" data-thumb-name="${escapeHtml(p.name)}">
-          ${hasSale ? '<span class="sale-badge">Giảm giá</span>' : ''}
-          ${escapeHtml(initials(p.name))}
-        </div>
-      </a>
-      <div class="card-body">
-        <div class="card-cat">${escapeHtml(p.category?.name || 'Chưa phân loại')}</div>
-        <a href="${href}"><div class="card-name">${escapeHtml(p.name)}</div></a>
-        <div class="card-price">
-          <span class="price-now">${formatVND(displayPrice)}</span>
-          ${hasSale ? `<span class="price-old">${formatVND(p.price)}</span>` : ''}
-        </div>
-        <div class="card-actions">
-          <button class="btn btn-primary btn-block btn-sm" data-add="${p.id}" ${p.stockQuantity <= 0 ? 'disabled' : ''}>
-            ${p.stockQuantity <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
-          </button>
-        </div>
-      </div>
-    </div>`;
-}
-
-async function addToCart(productId, btn) {
-  if (!getToken()) {
-    window.location.href = `/login.html?next=${encodeURIComponent(location.pathname + location.search)}`;
-    return;
-  }
-  btn.disabled = true;
+// Nudges the default "Tất cả sản phẩm" grid toward a logged-in visitor's
+// interests: products from their top affinity categories float to the top,
+// everything else keeps its original relative order. Falls back to the
+// untouched list for guests or anyone with no view/purchase history yet.
+async function personalizeOrder(products) {
   try {
-    await apiFetch('/cart/items', {
-      method: 'POST',
-      body: JSON.stringify({ productId: Number(productId), quantity: 1 }),
-    });
-    showToast('Đã thêm vào giỏ hàng');
-    refreshCartCount();
-  } catch (err) {
-    showToast(err.message, true);
-  } finally {
-    btn.disabled = false;
+    const { data: topCategoryIds } = await apiFetch('/recommendations/top-categories');
+    if (topCategoryIds.length === 0) return products;
+    const rank = new Map(topCategoryIds.map((id, i) => [id, i]));
+    return products
+      .map((p, i) => ({ p, i, r: rank.has(p.categoryId) ? rank.get(p.categoryId) : Infinity }))
+      .sort((a, b) => a.r - b.r || a.i - b.i)
+      .map((entry) => entry.p);
+  } catch {
+    return products;
   }
 }

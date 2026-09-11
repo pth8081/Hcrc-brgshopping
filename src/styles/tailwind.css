@@ -72,11 +72,16 @@
     border: 1.5px solid var(--color-brand-dark);
   }
 
-  .searchbar { @apply max-w-[1140px] mx-auto px-4 overflow-hidden max-h-0 transition-[max-height] duration-200 ease-in-out; }
-  .searchbar.open { @apply pb-3; max-height: 70px; }
+  .searchbar { @apply relative max-w-[1140px] mx-auto px-4 overflow-hidden max-h-0 transition-[max-height] duration-200 ease-in-out; }
+  .searchbar.open { @apply pb-3 overflow-visible; max-height: 70px; }
   .searchbar form { @apply flex items-center bg-white/15 rounded-full py-1 pr-1 pl-4; }
   .searchbar input { @apply flex-1 bg-transparent border-0 py-2 text-sm text-white focus:outline-0 placeholder:text-white/75; }
   .searchbar button { @apply bg-white text-brand-dark border-0 w-8 h-8 rounded-full cursor-pointer text-sm shrink-0 flex items-center justify-center; }
+  .search-suggest {
+    @apply hidden absolute left-4 right-4 top-[calc(100%-8px)] bg-surface text-ink border border-line rounded-xl shadow-card overflow-hidden z-50;
+  }
+  .search-suggest.open { @apply block; }
+  .search-suggest-item { @apply w-full text-left bg-transparent border-0 px-4 py-2.5 text-[13.5px] cursor-pointer border-b border-line-soft last:border-b-0 hover:bg-bg; }
 
   /* ---------- drawer (off-canvas menu) ---------- */
   .drawer-overlay { @apply fixed inset-0 bg-black/45 z-[60] opacity-0 pointer-events-none transition-opacity duration-200; }

@@ -39,9 +39,10 @@ export async function renderLayout({ activeCategoryId } = {}) {
       </div>
       <div class="searchbar" id="searchbar">
         <form id="search-form">
-          <input type="search" name="q" placeholder="Tìm sản phẩm, danh mục...">
+          <input type="search" name="q" id="search-input" placeholder="Tìm sản phẩm, danh mục..." autocomplete="off">
           <button type="submit" aria-label="Tìm kiếm">${ICON.search}</button>
         </form>
+        <div class="search-suggest" id="search-suggest"></div>
       </div>
     </div>
 
@@ -134,6 +135,7 @@ function wireHeader() {
     const q = new FormData(e.target).get('q');
     window.location.href = `/index.html${q ? `?q=${encodeURIComponent(q)}` : ''}`;
   });
+  wireSearchSuggestions();
 
   document.getElementById('bell-btn').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -155,6 +157,44 @@ function wireHeader() {
       window.location.href = '/index.html';
     });
   }
+}
+
+function wireSearchSuggestions() {
+  const input = document.getElementById('search-input');
+  const box = document.getElementById('search-suggest');
+  let debounceTimer;
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = input.value.trim();
+    if (!q) {
+      box.classList.remove('open');
+      return;
+    }
+    debounceTimer = setTimeout(async () => {
+      try {
+        const { data } = await apiFetch(`/search/suggestions?q=${encodeURIComponent(q)}`);
+        if (data.length === 0) {
+          box.classList.remove('open');
+          return;
+        }
+        box.innerHTML = data.map((kw) => `<button type="button" class="search-suggest-item" data-kw="${escapeHtml(kw)}">${escapeHtml(kw)}</button>`).join('');
+        box.classList.add('open');
+      } catch {
+        box.classList.remove('open');
+      }
+    }, 200);
+  });
+
+  box.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-kw]');
+    if (!btn) return;
+    window.location.href = `/index.html?q=${encodeURIComponent(btn.dataset.kw)}`;
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target !== input && !box.contains(e.target)) box.classList.remove('open');
+  });
 }
 
 async function loadDrawerCategories(activeCategoryId) {

@@ -129,6 +129,38 @@ export const PAYMENT_STATUS_CLASS = {
   refunded: 'pill-shipping',
 };
 
+const RECENTLY_VIEWED_KEY = 'brg_recently_viewed';
+const RECENTLY_VIEWED_MAX = 10;
+
+// Client-side "recently viewed" — no server round-trip, no account needed.
+// Stores just enough to render a product card without refetching each item.
+export function pushRecentlyViewed(product) {
+  const entry = {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    price: product.price,
+    salePrice: product.salePrice,
+    categoryName: product.category?.name || null,
+  };
+  const list = getRecentlyViewed().filter((p) => p.id !== entry.id);
+  list.unshift(entry);
+  try {
+    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list.slice(0, RECENTLY_VIEWED_MAX)));
+  } catch {
+    // localStorage unavailable (private browsing, quota) — recently-viewed just won't persist.
+  }
+}
+
+export function getRecentlyViewed() {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENTLY_VIEWED_KEY));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
 export const PAYMENT_METHOD_LABEL = {
   cod: 'Thanh toán khi nhận hàng (COD)',
   bank_transfer: 'Chuyển khoản ngân hàng',
