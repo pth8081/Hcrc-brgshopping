@@ -1,6 +1,7 @@
 import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
 import { categoryIcon } from '../icons.js';
+import { promoCard } from '../promoHelpers.js';
 
 const params = new URLSearchParams(location.search);
 const categoryId = params.get('category');
@@ -19,9 +20,23 @@ loadProducts();
 if (isHomepage) {
   renderHero();
   loadCategoryGrid();
+  loadCampaigns();
 } else {
   document.getElementById('hero-carousel').hidden = true;
   document.getElementById('promo-banner').hidden = true;
+}
+
+async function loadCampaigns() {
+  const section = document.getElementById('campaign-section');
+  const grid = document.getElementById('campaign-grid');
+  try {
+    const { data } = await apiFetch('/promotions');
+    if (data.length === 0) return;
+    grid.innerHTML = data.slice(0, 3).map(promoCard).join('');
+    section.hidden = false;
+  } catch {
+    section.hidden = true;
+  }
 }
 
 function renderHero() {

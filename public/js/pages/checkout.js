@@ -3,6 +3,10 @@ import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
 
 renderLayout({});
 
+let subtotal = 0;
+let shippingFee = 0;
+let appliedPromo = null; // { code, promotionId, title, discountAmount }
+
 if (requireAuth()) {
   loadCheckout();
 }
@@ -22,8 +26,9 @@ async function loadCheckout() {
       return;
     }
 
-    const total = data.items.reduce((sum, item) => sum + Number(item.priceAtAdd) * item.quantity, 0);
-    const shipping = total >= 500000 ? 0 : 20000;
+    subtotal = data.items.reduce((sum, item) => sum + Number(item.priceAtAdd) * item.quantity, 0);
+    const shipping = subtotal >= 500000 ? 0 : 20000;
+    shippingFee = shipping;
 
     el.innerHTML = `
       <div class="cart-layout">
@@ -58,7 +63,7 @@ async function loadCheckout() {
               <label for="note">Ghi chú (tuỳ chọn)</label>
               <textarea id="note" name="note" rows="2" placeholder="Giao giờ hành chính..."></textarea>
             </div>
-            <button class="btn btn-primary btn-block" type="submit">Đặt hàng — ${formatVND(total + shipping)}</button>
+            <button class="btn btn-primary btn-block" type="submit" id="submit-btn">Đặt hàng — ${formatVND(subtotal + shipping)}</button>
           </form>
         </div>
 
@@ -73,14 +78,22 @@ async function loadCheckout() {
             </div>`
             )
             .join('')}
-          <div class="summary-row"><span>Tạm tính</span><span class="val">${formatVND(total)}</span></div>
-          <div class="summary-row"><span>Vận chuyển</span><span class="val">${shipping ? formatVND(shipping) : 'Miễn phí'}</span></div>
-          <div class="summary-row total"><span>Tổng cộng</span><span class="val">${formatVND(total + shipping)}</span></div>
+          <div class="form-row mt-2.5">
+            <label for="promoCode">Mã khuyến mại</label>
+            <div class="flex gap-2">
+              <input id="promoCode" placeholder="Nhập mã (nếu có)" class="flex-1">
+              <button type="button" class="btn btn-outline btn-sm" id="apply-promo-btn">Áp dụng</button>
+            </div>
+            <div class="form-error" id="promo-error"></div>
+          </div>
+          <div id="summary-rows"></div>
         </div>
       </div>`;
 
+    renderSummary();
     document.getElementById('checkout-form').addEventListener('submit', (e) => submitOrder(e));
     document.getElementById('paymentMethod').addEventListener('change', updatePaymentInfo);
+    document.getElementById('apply-promo-btn').addEventListener('click', applyPromoCode);
     updatePaymentInfo();
   } catch (err) {
     el.innerHTML = `<div class="empty-state">Không tải được giỏ hàng: ${escapeHtml(err.message)}</div>`;
@@ -92,6 +105,43 @@ const PAYMENT_INFO = {
     'Chuyển khoản tới: <strong>Ngân hàng ABC — STK 0123456789 — CTY TNHH BRG</strong>. Nội dung: số điện thoại của bạn. Đơn hàng sẽ được xác nhận thanh toán sau khi cửa hàng nhận được tiền.',
   e_wallet: 'Sau khi đặt hàng, nhân viên sẽ liên hệ gửi mã QR ví điện tử để thanh toán.',
 };
+
+function renderSummary() {
+  const total = subtotal - (appliedPromo?.discountAmount || 0) + shippingFee;
+  document.getElementById('summary-rows').innerHTML = `
+    <div class="summary-row"><span>Tạm tính</span><span class="val">${formatVND(subtotal)}</span></div>
+    ${
+      appliedPromo
+        ? `<div class="summary-row"><span>Khuyến mại (${escapeHtml(appliedPromo.code)})</span><span class="val">-${formatVND(appliedPromo.discountAmount)}</span></div>`
+        : ''
+    }
+    <div class="summary-row"><span>Vận chuyển</span><span class="val">${shippingFee ? formatVND(shippingFee) : 'Miễn phí'}</span></div>
+    <div class="summary-row total"><span>Tổng cộng</span><span class="val">${formatVND(total)}</span></div>`;
+  document.getElementById('submit-btn').textContent = `Đặt hàng — ${formatVND(total)}`;
+}
+
+async function applyPromoCode() {
+  const input = document.getElementById('promoCode');
+  const errorEl = document.getElementById('promo-error');
+  errorEl.classList.remove('show');
+  const code = input.value.trim();
+  if (!code) return;
+
+  try {
+    const { data } = await apiFetch('/promotions/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code, orderTotal: subtotal }),
+    });
+    appliedPromo = { code, promotionId: data.promotionId, title: data.title, discountAmount: Number(data.discountAmount) };
+    showToast(`Đã áp dụng mã ${code}`);
+    renderSummary();
+  } catch (err) {
+    appliedPromo = null;
+    errorEl.textContent = err.message;
+    errorEl.classList.add('show');
+    renderSummary();
+  }
+}
 
 function updatePaymentInfo() {
   const method = document.getElementById('paymentMethod').value;
@@ -122,6 +172,7 @@ async function submitOrder(e) {
         addressLine: fd.get('address'),
         paymentMethod: fd.get('paymentMethod'),
         note: fd.get('note') || undefined,
+        promoCode: appliedPromo?.code || undefined,
       }),
     });
     refreshCartCount();

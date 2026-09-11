@@ -12,12 +12,12 @@ const ICON = {
 };
 
 const STATIC_LINKS = [
-  { label: 'Về BRG Shopping', slug: 've-chung-toi' },
-  { label: 'Khuyến mãi', slug: 'khuyen-mai' },
-  { label: 'Thẻ thành viên', slug: 'the-thanh-vien' },
-  { label: 'Tuyển dụng', slug: 'tuyen-dung' },
-  { label: 'Tin tức', slug: 'tin-tuc' },
-  { label: 'Liên hệ', slug: 'lien-he' },
+  { label: 'Về BRG Shopping', href: '/page.html?slug=ve-chung-toi' },
+  { label: 'Khuyến mãi', href: '/promotions.html' },
+  { label: 'Thẻ thành viên', href: '/page.html?slug=the-thanh-vien' },
+  { label: 'Tuyển dụng', href: '/page.html?slug=tuyen-dung' },
+  { label: 'Tin tức', href: '/news.html' },
+  { label: 'Liên hệ', href: '/page.html?slug=lien-he' },
 ];
 
 export async function renderLayout({ activeCategoryId } = {}) {
@@ -56,7 +56,7 @@ export async function renderLayout({ activeCategoryId } = {}) {
       </div>
       <nav id="drawer-categories"></nav>
       <div class="static-links">
-        ${STATIC_LINKS.map((l) => `<a href="/page.html?slug=${l.slug}">${escapeHtml(l.label).toUpperCase()}</a>`).join('')}
+        ${STATIC_LINKS.map((l) => `<a href="${l.href}">${escapeHtml(l.label).toUpperCase()}</a>`).join('')}
       </div>
       <div class="drawer-auth">
         ${

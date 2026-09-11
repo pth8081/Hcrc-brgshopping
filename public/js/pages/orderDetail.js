@@ -86,6 +86,11 @@ function render(order) {
             </div>`
             )
             .join('')}
+          ${
+            order.promotion
+              ? `<div class="summary-row"><span>Khuyến mại (${escapeHtml(order.promotion.code || order.promotion.title)})</span><span class="val">-${formatVND(order.discountAmount)}</span></div>`
+              : ''
+          }
           <div class="summary-row total"><span>Tổng cộng</span><span class="val">${formatVND(order.totalAmount)}</span></div>
         </div>
       </div>

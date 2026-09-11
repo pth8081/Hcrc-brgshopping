@@ -1,12 +1,14 @@
+const { Op } = require('sequelize');
 const {
-  sequelize, Order, OrderItem, OrderStatusHistory, Cart, CartItem, Product, Address, User,
+  sequelize, Order, OrderItem, OrderStatusHistory, Cart, CartItem, Product, Address, User, Promotion,
 } = require('../models');
 const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { getOrCreateCart } = require('./cart.controller');
+const { computeDiscount } = require('./promotion.controller');
 
 const checkout = asyncHandler(async (req, res) => {
-  const { recipientName, phone, addressLine, paymentMethod = 'cod', note } = req.body;
+  const { recipientName, phone, addressLine, paymentMethod = 'cod', note, promoCode } = req.body;
   if (!recipientName || !phone || !addressLine) {
     throw new ApiError(400, 'recipientName, phone and addressLine are required');
   }
@@ -23,14 +25,33 @@ const checkout = asyncHandler(async (req, res) => {
       addressLine,
     }, { transaction: t });
 
-    const totalAmount = cartItems.reduce((sum, item) => sum + Number(item.priceAtAdd) * item.quantity, 0);
+    const subtotal = cartItems.reduce((sum, item) => sum + Number(item.priceAtAdd) * item.quantity, 0);
+
+    let promotion = null;
+    let discountAmount = 0;
+    if (promoCode) {
+      const now = new Date();
+      promotion = await Promotion.findOne({
+        where: { code: promoCode.trim().toUpperCase(), isActive: true, startDate: { [Op.lte]: now }, endDate: { [Op.gte]: now } },
+        transaction: t,
+      });
+      if (!promotion) throw new ApiError(404, 'Mã khuyến mại không hợp lệ hoặc đã hết hạn');
+      if (subtotal < Number(promotion.minOrderAmount)) {
+        throw new ApiError(400, `Đơn hàng tối thiểu ${Number(promotion.minOrderAmount).toLocaleString('vi-VN')}đ để áp dụng mã này`);
+      }
+      discountAmount = computeDiscount(promotion, subtotal);
+    }
+
+    const totalAmount = subtotal - discountAmount;
 
     const newOrder = await Order.create({
       userId: req.user.id,
       addressId: address.id,
+      promotionId: promotion ? promotion.id : null,
       paymentMethod,
       note: note || null,
       totalAmount,
+      discountAmount,
     }, { transaction: t });
 
     for (const item of cartItems) {
@@ -65,7 +86,7 @@ const checkout = asyncHandler(async (req, res) => {
 const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.findAll({
     where: { userId: req.user.id },
-    include: [{ model: OrderItem, as: 'items' }, { model: Address, as: 'address' }],
+    include: [{ model: OrderItem, as: 'items' }, { model: Address, as: 'address' }, { model: Promotion, as: 'promotion', attributes: ['id', 'title', 'code'] }],
     order: [['createdAt', 'DESC']],
   });
   res.json({ success: true, data: orders });
@@ -77,6 +98,7 @@ const getById = asyncHandler(async (req, res) => {
       { model: OrderItem, as: 'items' },
       { model: Address, as: 'address' },
       { model: User, attributes: ['id', 'fullName', 'email', 'phone'] },
+      { model: Promotion, as: 'promotion', attributes: ['id', 'title', 'code'] },
       { model: OrderStatusHistory, as: 'history', separate: true, order: [['createdAt', 'ASC']] },
     ],
   });

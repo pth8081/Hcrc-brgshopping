@@ -21,6 +21,8 @@
           <button data-tab="categories" class="active">Danh mục</button>
           <button data-tab="products">Sản phẩm</button>
           <button data-tab="orders">Đơn hàng</button>
+          <button data-tab="news">Tin tức</button>
+          <button data-tab="promotions">Khuyến mại</button>
         </div>
 
         <section id="tab-categories">
@@ -91,6 +93,89 @@
           <div class="panel">
             <h3>Tất cả đơn hàng</h3>
             <div id="order-table"></div>
+          </div>
+        </section>
+
+        <section id="tab-news" hidden>
+          <div class="panel mb-[18px]">
+            <h3>Đăng tin tức</h3>
+            <div class="form-error" id="news-error"></div>
+            <form id="news-form">
+              <div class="form-row">
+                <label for="n-title">Tiêu đề</label>
+                <input id="n-title" name="title" required>
+              </div>
+              <div class="form-row">
+                <label for="n-summary">Tóm tắt (tuỳ chọn)</label>
+                <input id="n-summary" name="summary">
+              </div>
+              <div class="form-row">
+                <label for="n-image">Ảnh bìa (URL, tuỳ chọn)</label>
+                <input id="n-image" name="imageUrl" placeholder="https://...">
+              </div>
+              <div class="form-row">
+                <label for="n-content">Nội dung</label>
+                <textarea id="n-content" name="content" rows="6" required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary justify-self-start">Đăng tin</button>
+            </form>
+          </div>
+          <div class="panel">
+            <h3>Danh sách tin tức</h3>
+            <div id="news-table"></div>
+          </div>
+        </section>
+
+        <section id="tab-promotions" hidden>
+          <div class="panel mb-[18px]">
+            <h3>Tạo chương trình khuyến mại</h3>
+            <div class="form-error" id="promotion-error"></div>
+            <form id="promotion-form" class="form-grid">
+              <div class="form-row">
+                <label for="pr-title">Tên chương trình</label>
+                <input id="pr-title" name="title" required>
+              </div>
+              <div class="form-row">
+                <label for="pr-code">Mã khuyến mại (tuỳ chọn)</label>
+                <input id="pr-code" name="code" placeholder="VD: SALE50">
+              </div>
+              <div class="form-row">
+                <label for="pr-type">Loại giảm giá</label>
+                <select id="pr-type" name="discountType">
+                  <option value="percent">Phần trăm (%)</option>
+                  <option value="fixed">Số tiền cố định (₫)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="pr-value">Giá trị giảm</label>
+                <input id="pr-value" name="discountValue" type="number" min="0" required>
+              </div>
+              <div class="form-row">
+                <label for="pr-min">Đơn tối thiểu (₫)</label>
+                <input id="pr-min" name="minOrderAmount" type="number" min="0" value="0">
+              </div>
+              <div class="form-row">
+                <label for="pr-max">Giảm tối đa (₫, tuỳ chọn)</label>
+                <input id="pr-max" name="maxDiscountAmount" type="number" min="0">
+              </div>
+              <div class="form-row">
+                <label for="pr-start">Ngày bắt đầu</label>
+                <input id="pr-start" name="startDate" type="date" required>
+              </div>
+              <div class="form-row">
+                <label for="pr-end">Ngày kết thúc</label>
+                <input id="pr-end" name="endDate" type="date" required>
+              </div>
+              <div class="form-row col-span-full">
+                <label for="pr-desc">Mô tả (tuỳ chọn)</label>
+                <textarea id="pr-desc" name="description" rows="2"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary col-span-full justify-self-start">Tạo chương trình</button>
+            </form>
+          </div>
+          <div class="panel">
+            <h3>Danh sách khuyến mại</h3>
+            <div id="promotion-table"></div>
           </div>
         </section>
       </div>

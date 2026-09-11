@@ -9,10 +9,12 @@ const Order = sequelize.define('Order', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   userId: { type: DataTypes.INTEGER, allowNull: false },
   addressId: { type: DataTypes.INTEGER, allowNull: true },
+  promotionId: { type: DataTypes.INTEGER, allowNull: true },
   status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'pending', validate: { isIn: [ORDER_STATUSES] } },
   paymentMethod: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'cod', validate: { isIn: [PAYMENT_METHODS] } },
   paymentStatus: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'unpaid', validate: { isIn: [PAYMENT_STATUSES] } },
   totalAmount: { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
+  discountAmount: { type: DataTypes.DECIMAL(14, 2), allowNull: false, defaultValue: 0 },
   note: { type: DataTypes.STRING(500), allowNull: true },
 }, {
   tableName: 'orders',

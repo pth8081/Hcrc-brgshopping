@@ -1,5 +1,6 @@
 import { apiFetch, getUser, formatVND, formatDate, showToast, ORDER_STATUS_LABEL } from '../api.js';
 import { renderLayout, escapeHtml } from '../layout.js';
+import { discountLabel } from '../promoHelpers.js';
 
 renderLayout({});
 
@@ -17,6 +18,8 @@ if (!user) {
   loadCategories();
   loadProducts();
   loadOrders();
+  loadNews();
+  loadPromotions();
   wireForms();
 }
 
@@ -26,7 +29,7 @@ function initTabs() {
     btn.addEventListener('click', () => {
       buttons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['categories', 'products', 'orders'].forEach((name) => {
+      ['categories', 'products', 'orders', 'news', 'promotions'].forEach((name) => {
         document.getElementById(`tab-${name}`).hidden = name !== btn.dataset.tab;
       });
     });
@@ -174,6 +177,91 @@ async function loadOrders() {
   }
 }
 
+async function loadNews() {
+  const table = document.getElementById('news-table');
+  try {
+    const { data } = await apiFetch('/news/all');
+
+    table.innerHTML = data.length
+      ? `<table class="admin-table">
+          <thead><tr><th>ID</th><th>Tiêu đề</th><th>Ngày đăng</th><th>Trạng thái</th><th></th></tr></thead>
+          <tbody>
+            ${data
+              .map(
+                (n) => `
+              <tr>
+                <td>${n.id}</td>
+                <td>${escapeHtml(n.title)}</td>
+                <td>${formatDate(n.publishedAt)}</td>
+                <td>${n.isPublished ? 'Đã đăng' : 'Nháp'}</td>
+                <td><button class="btn btn-ghost btn-sm" data-del-news="${n.id}">Xoá</button></td>
+              </tr>`
+              )
+              .join('')}
+          </tbody>
+        </table>`
+      : '<p class="text-muted">Chưa có bài viết nào.</p>';
+
+    table.querySelectorAll('[data-del-news]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Xoá bài viết này?')) return;
+        try {
+          await apiFetch(`/news/${btn.dataset.delNews}`, { method: 'DELETE' });
+          showToast('Đã xoá bài viết');
+          loadNews();
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      });
+    });
+  } catch (err) {
+    table.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function loadPromotions() {
+  const table = document.getElementById('promotion-table');
+  try {
+    const { data } = await apiFetch('/promotions/all');
+
+    table.innerHTML = data.length
+      ? `<table class="admin-table">
+          <thead><tr><th>ID</th><th>Chương trình</th><th>Mã</th><th>Giảm giá</th><th>Hiệu lực</th><th></th></tr></thead>
+          <tbody>
+            ${data
+              .map(
+                (p) => `
+              <tr>
+                <td>${p.id}</td>
+                <td>${escapeHtml(p.title)}</td>
+                <td>${p.code ? escapeHtml(p.code) : '—'}</td>
+                <td>${discountLabel(p)}</td>
+                <td>${new Date(p.startDate).toLocaleDateString('vi-VN')} – ${new Date(p.endDate).toLocaleDateString('vi-VN')}</td>
+                <td><button class="btn btn-ghost btn-sm" data-del-promo="${p.id}">Xoá</button></td>
+              </tr>`
+              )
+              .join('')}
+          </tbody>
+        </table>`
+      : '<p class="text-muted">Chưa có chương trình khuyến mại nào.</p>';
+
+    table.querySelectorAll('[data-del-promo]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Xoá chương trình khuyến mại này?')) return;
+        try {
+          await apiFetch(`/promotions/${btn.dataset.delPromo}`, { method: 'DELETE' });
+          showToast('Đã xoá chương trình khuyến mại');
+          loadPromotions();
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      });
+    });
+  } catch (err) {
+    table.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
+  }
+}
+
 function wireForms() {
   const catForm = document.getElementById('category-form');
   const catError = document.getElementById('category-error');
@@ -220,6 +308,61 @@ function wireForms() {
     } catch (err) {
       prodError.textContent = err.message;
       prodError.classList.add('show');
+    }
+  });
+
+  const newsForm = document.getElementById('news-form');
+  const newsError = document.getElementById('news-error');
+  newsForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    newsError.classList.remove('show');
+    const fd = new FormData(newsForm);
+    try {
+      await apiFetch('/news', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: fd.get('title'),
+          summary: fd.get('summary') || undefined,
+          imageUrl: fd.get('imageUrl') || undefined,
+          content: fd.get('content'),
+        }),
+      });
+      newsForm.reset();
+      showToast('Đã đăng tin tức');
+      loadNews();
+    } catch (err) {
+      newsError.textContent = err.message;
+      newsError.classList.add('show');
+    }
+  });
+
+  const promoForm = document.getElementById('promotion-form');
+  const promoError = document.getElementById('promotion-error');
+  promoForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    promoError.classList.remove('show');
+    const fd = new FormData(promoForm);
+    try {
+      await apiFetch('/promotions', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: fd.get('title'),
+          code: fd.get('code') || undefined,
+          discountType: fd.get('discountType'),
+          discountValue: Number(fd.get('discountValue')),
+          minOrderAmount: fd.get('minOrderAmount') ? Number(fd.get('minOrderAmount')) : 0,
+          maxDiscountAmount: fd.get('maxDiscountAmount') ? Number(fd.get('maxDiscountAmount')) : undefined,
+          startDate: fd.get('startDate'),
+          endDate: fd.get('endDate'),
+          description: fd.get('description') || undefined,
+        }),
+      });
+      promoForm.reset();
+      showToast('Đã tạo chương trình khuyến mại');
+      loadPromotions();
+    } catch (err) {
+      promoError.textContent = err.message;
+      promoError.classList.add('show');
     }
   });
 }
