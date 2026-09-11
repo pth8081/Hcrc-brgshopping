@@ -1,6 +1,6 @@
 {
   "name": "brgshopping-nodejs-mssql",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "BRG Shopping rebuild: Node.js + Express + MSSQL (migrated from the live Odoo/PostgreSQL database)",
   "main": "src/server.js",
   "type": "commonjs",
