@@ -1,23 +1,31 @@
 # Deploying to a public VPS (Ubuntu/CentOS)
 
-This covers a standard setup: the Node app runs as a systemd service on
-`127.0.0.1:3000`, and **nginx sits in front of it as a reverse proxy,
-terminating TLS** — the app itself is never exposed directly to the
-internet. Commands below are for Ubuntu (`apt`); CentOS/RHEL equivalents
-(`dnf`/`yum`, `firewalld` instead of `ufw`) are noted where they differ.
+Two supported setups, both process-managed by **PM2**:
 
-> This project's CSP and cookie-free JWT design already assume the app may
-> run over plain HTTP (see the Security section in the main README) — that
-> was correct for the original offline/internal deployment target. **Once
-> this is reachable from the public internet, plain HTTP is not acceptable**:
-> a login request would carry the user's password in cleartext over the
-> network. TLS via nginx (step 6) is what fixes that; nothing in the Node
-> app itself needs to change to support it.
+- **[Option 1: PM2 only](#option-1-pm2-only-no-reverse-proxy)** — the Node
+  app is the only thing listening on the public ports. Simpler, one less
+  moving part, no nginx to install or configure. For real HTTPS in this
+  setup, the app terminates TLS itself (see below) — there's no reverse
+  proxy to do it instead.
+- **[Option 2: PM2 + nginx](#option-2-pm2--nginx)** — nginx sits in front
+  as a reverse proxy and terminates TLS; the Node app only ever talks
+  plain HTTP to `localhost`. More moving parts, but nginx's TLS handling
+  (via certbot's nginx plugin) is simpler to keep renewed automatically,
+  and nginx can do things like serving multiple sites on one IP or
+  buffering slow clients that this app doesn't do itself.
+
+If you're unsure, **Option 2 is the more common, more battle-tested setup**
+for a public site. Option 1 is fine too — it just puts a bit more of the
+TLS/port-binding work on the app and PM2 instead of on nginx.
+
+Steps 1–4 below are shared; they end with the app's dependencies installed
+and its database ready. Then jump to whichever option you picked.
 
 ## 0. Before you start: what you need decided
 
-- A domain name pointed at the VPS (an A record), or you can't get a real
-  TLS certificate (Let's Encrypt validates ownership of the domain).
+- A domain name pointed at the VPS (an A record) if you want a real TLS
+  certificate — both options below use [Let's Encrypt](https://letsencrypt.org/)
+  via `certbot`, which validates ownership of the domain.
 - Where MSSQL will run. Two realistic options:
   - **SQL Server on Linux**, installed on this same VPS or another one you
     control — see [Microsoft's install docs](https://learn.microsoft.com/sql/linux/sql-server-linux-setup)
@@ -40,16 +48,18 @@ internet. Commands below are for Ubuntu (`apt`); CentOS/RHEL equivalents
   su - deploy
   ```
 
-## 2. Install Node.js
+## 2. Install Node.js and PM2
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
-node -v   # should print v20.x
+node -v            # should print v20.x
+sudo npm install -g pm2
 ```
 
-CentOS/RHEL: swap the first line for `curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -`
-and `apt install` for `dnf install -y nodejs`.
+CentOS/RHEL: swap the first line for
+`curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -` and
+`apt install` for `dnf install -y nodejs`.
 
 ## 3. Get the code and install dependencies
 
@@ -57,13 +67,12 @@ and `apt install` for `dnf install -y nodejs`.
 git clone <your repo URL> /home/deploy/brgshopping
 cd /home/deploy/brgshopping
 npm ci --omit=dev
-npm install -g pm2   # or skip this and use the systemd unit in step 5 instead — pick one, not both
 ```
 
 `npm run build:css` is **not** needed here — `public/css/style.css` is a
 committed build artifact; it's already in the repo.
 
-## 4. Configure the environment
+## 4. Configure the environment, create the schema, seed the admin
 
 ```bash
 cp .env.example .env
@@ -78,16 +87,17 @@ At minimum, set for real:
 | `JWT_SECRET` | A long random value: `openssl rand -base64 48`. Never reuse the placeholder from `.env.example`. |
 | `MSSQL_HOST` / `MSSQL_PORT` / `MSSQL_DATABASE` / `MSSQL_USER` / `MSSQL_PASSWORD` | Your real MSSQL instance from step 0 |
 | `MSSQL_ENCRYPT` | `true` if your MSSQL instance has a real TLS certificate (recommended for anything not on `localhost`); `MSSQL_TRUST_SERVER_CERTIFICATE` only matters when `MSSQL_ENCRYPT=true` with a self-signed cert |
-| `ADMIN_PASSWORD` | **Leave unset.** The seeder in step 5 will generate one and print it once — see below for why a fixed default is a bad idea on a real deployment. |
+| `ADMIN_PASSWORD` | **Leave unset.** The seed step below generates one and prints it once — see why in the main README. |
 
-## 5. Create the schema and the admin account
+Leave `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `HTTP_REDIRECT_PORT` alone
+for now — each option below says exactly what to set.
 
 ```bash
 npx sequelize-cli db:migrate
 npx sequelize-cli db:seed:all
 ```
 
-The second command prints something like:
+The seed command prints something like:
 
 ```
 ===========================================================
@@ -99,49 +109,154 @@ The second command prints something like:
 
 **Copy that password now** — it is not stored anywhere in plaintext (only
 its bcrypt hash goes into the database), and this output will scroll away.
-If you lose it, the only way back in is to run `npx sequelize-cli db:seed:undo` then
-`db:seed:all` again for a fresh one (this deletes and recreates the admin
-user row — fine before real orders reference it, not after).
-
-There is currently no self-service "change password" screen in the app
-(tracked in the main README's Next steps) — to use a specific password
-instead of a generated one, set `ADMIN_PASSWORD` in `.env` *before* running
-`db:seed:all` the first time.
+If you lose it, the only way back in is `npx sequelize-cli db:seed:undo`
+then `db:seed:all` again for a fresh one (this deletes and recreates the
+admin user row — fine before real orders reference it, not after). There
+is currently no self-service "change password" screen in the app.
 
 If you're bringing over real catalog/customer/order data from an existing
 Odoo installation, run that migration now, before real traffic hits the
 site — see [`MIGRATION.md`](./MIGRATION.md).
 
-## 6. Run the app as a service
+---
 
-Pick **one** of these — don't run both against the same port.
+## Option 1: PM2 only, no reverse proxy
 
-### Option A: systemd (no extra tooling)
+The app binds directly to the public port(s). Two variants: plain HTTP
+(simplest, but **not recommended** once this is reachable from the public
+internet — see the warning below), or the app terminating HTTPS itself.
 
-Copy [`deploy/brgshopping.service`](../deploy/brgshopping.service) to
-`/etc/systemd/system/brgshopping.service`, edit the `User=`,
-`WorkingDirectory=` and `EnvironmentFile=` lines to match your paths, then:
+### Allow Node to bind to ports 80/443 without running as root
+
+Linux reserves ports below 1024 for root by default. Rather than run the
+whole Node process as root (a much bigger blast radius if the app is ever
+compromised), grant just the ability to bind low ports to the `node`
+binary:
 
 ```bash
-sudo cp deploy/brgshopping.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now brgshopping
-sudo systemctl status brgshopping
-journalctl -u brgshopping -f   # tail logs
+sudo setcap 'cap_net_bind_service=+ep' "$(readlink -f "$(which node)")"
 ```
 
-systemd restarts the process automatically if it crashes and starts it on
-boot — that's the main thing "not production-ready" was missing.
+Re-run this after any Node version upgrade — it re-links to a new binary.
 
-### Option B: PM2
+### 1a. Plain HTTP (simplest — only if you understand the risk)
+
+```bash
+# In .env: PORT=80, TLS_KEY_PATH and TLS_CERT_PATH left unset
+pm2 start src/server.js --name brgshopping
+pm2 save
+pm2 startup   # prints a command to run once, so PM2 survives a reboot
+```
+
+**Everything — including login passwords and JWTs — travels unencrypted**
+over the network. Fine for a truly internal/offline deployment (the
+original target this app's CSP was designed for); **not fine** for
+anything the public internet can reach. Use 1b instead unless you have TLS
+handled somewhere else already (e.g. a CDN/load balancer in front that you
+control).
+
+### 1b. The app terminates HTTPS itself
+
+Get a certificate first, with nothing else on port 80 yet (certbot's
+`--standalone` mode runs its own temporary web server to prove domain
+ownership):
+
+```bash
+sudo apt install -y certbot   # CentOS/RHEL: dnf install -y certbot
+sudo certbot certonly --standalone -d example.com
+# certificate + key land in /etc/letsencrypt/live/example.com/
+```
+
+Let PM2's user read the certificate (Let's Encrypt's directory is root-only
+by default):
+
+```bash
+sudo setfacl -R -m u:deploy:rX /etc/letsencrypt/live /etc/letsencrypt/archive
+```
+
+Then in `.env`:
+```
+PORT=443
+TLS_KEY_PATH=/etc/letsencrypt/live/example.com/privkey.pem
+TLS_CERT_PATH=/etc/letsencrypt/live/example.com/fullchain.pem
+HTTP_REDIRECT_PORT=80
+```
 
 ```bash
 pm2 start src/server.js --name brgshopping
 pm2 save
-pm2 startup   # prints a command to run once, so PM2 itself survives a reboot
+pm2 startup
 ```
 
-## 7. Put nginx in front, with real TLS
+The app now serves HTTPS on 443 and redirects any plain HTTP request on 80
+to it (`src/server.js` — no nginx involved).
+
+**Renewal**: certbot's certificates expire every 90 days. Node only reads
+the certificate files once, at startup, so a renewal needs the app
+restarted to pick up the new files. Add a renewal hook:
+
+```bash
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/restart-brgshopping.sh > /dev/null <<'EOF'
+#!/bin/sh
+su - deploy -c "pm2 restart brgshopping"
+EOF
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/restart-brgshopping.sh
+```
+
+Standalone mode's HTTP-01 challenge needs port 80 free for a few seconds
+during renewal, which conflicts with the app's own port-80 redirect
+listener. Use a stop/start pre/post hook instead of `--standalone`'s
+built-in server for renewals:
+
+```bash
+sudo crontab -e
+# add:
+0 3 * * * certbot renew --pre-hook "su - deploy -c 'pm2 stop brgshopping'" --post-hook "su - deploy -c 'pm2 start brgshopping'" --quiet
+```
+
+(This replaces the deploy-hook script above with an equivalent pre/post
+pair — pick one mechanism, not both, to avoid restarting twice.)
+
+### Firewall (Option 1)
+
+Only the port(s) the app actually listens on need to be public.
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80,443/tcp    # or just 80 if you're doing 1a
+sudo ufw enable
+```
+CentOS/RHEL (`firewalld`):
+```bash
+sudo firewall-cmd --permanent --add-service=ssh --add-service=http --add-service=https
+sudo firewall-cmd --reload
+```
+
+### Verify (Option 1)
+
+```bash
+curl -Ik https://example.com/health   # or http:// for variant 1a
+```
+should return `200`.
+
+---
+
+## Option 2: PM2 + nginx
+
+### Run the app under PM2, on a local-only port
+
+```bash
+# In .env: PORT=3000 (default), TLS_KEY_PATH/TLS_CERT_PATH left unset —
+# the app only ever needs to speak plain HTTP to nginx on localhost.
+pm2 start src/server.js --name brgshopping
+pm2 save
+pm2 startup   # prints a command to run once, so PM2 survives a reboot
+```
+
+`pm2 status`, `pm2 logs brgshopping`, and `pm2 restart brgshopping` are
+your day-to-day process management commands.
+
+### Install nginx and point it at the app
 
 ```bash
 sudo apt install -y nginx certbot python3-certbot-nginx
@@ -162,29 +277,36 @@ sudo systemctl reload nginx
 sudo certbot --nginx -d example.com   # obtains a cert and rewrites the config for HTTPS + HTTP->HTTPS redirect
 ```
 
-Certbot sets up automatic renewal on its own (a systemd timer or cron job);
-confirm it with `sudo certbot renew --dry-run`.
+Certbot's nginx plugin sets up automatic renewal on its own (a systemd
+timer or cron job) **and** reloads nginx afterwards — no manual hook needed
+here, unlike Option 1. Confirm it with `sudo certbot renew --dry-run`.
 
-## 8. Firewall
+### Firewall (Option 2)
 
-Only expose 80/443 (nginx) and SSH publicly — the app port (3000) and MSSQL
-should only be reachable from `localhost` / your internal network, never
-directly from the internet.
+Only 80/443 (nginx) and SSH should be public — the app's own port (3000)
+should only be reachable from `localhost`.
 
 ```bash
 sudo ufw allow OpenSSH
 sudo ufw allow 'Nginx Full'
 sudo ufw enable
-sudo ufw status
 ```
-
 CentOS/RHEL (`firewalld`):
 ```bash
 sudo firewall-cmd --permanent --add-service=ssh --add-service=http --add-service=https
 sudo firewall-cmd --reload
 ```
 
-## 9. Backups
+### Verify (Option 2)
+
+```bash
+curl -I https://example.com/health
+```
+should return `HTTP/2 200`.
+
+---
+
+## 5. Backups
 
 Nothing in this repo backs up the database automatically. At minimum, set
 up a nightly `sqlcmd`/`BACKUP DATABASE` job (or your MSSQL host's built-in
@@ -192,14 +314,10 @@ backup feature, e.g. Azure SQL's automatic backups) and copy the backup
 file off the VPS — a backup that lives on the same disk as the database
 doesn't survive a disk failure.
 
-## 10. Verify
+## 6. Log in and lock things down
 
-```bash
-curl -I https://example.com/health
-```
-should return `HTTP/2 200`. Then load the site in a browser, log in as the
-admin account from step 5, and change or add real catalog data before
-announcing the site publicly.
+Load the site in a browser, log in as the admin account from step 4, and
+add real catalog data before announcing the site publicly.
 
 ## What this deliberately doesn't cover
 

@@ -134,9 +134,11 @@ See [`docs/MIGRATION.md`](docs/MIGRATION.md).
 
 The setup above (`npm run dev`, a local/Docker MSSQL) is for development.
 For a real server — especially one reachable from the public internet —
-see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): systemd/PM2, nginx as a
-TLS-terminating reverse proxy, firewall, and backups. Template config files
-live in [`deploy/`](deploy/).
+see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): process-managed by **PM2**,
+with two options — PM2 alone (the app can terminate HTTPS itself via
+`TLS_KEY_PATH`/`TLS_CERT_PATH`, see `.env.example`) or PM2 behind **nginx**
+as a TLS-terminating reverse proxy — plus firewall and backup guidance. An
+nginx config template lives in [`deploy/`](deploy/).
 
 ## Frontend (storefront)
 
@@ -196,15 +198,16 @@ Tailwind or reach the internet.
     `upgrade-insecure-requests`, which would make browsers rewrite every
     request to HTTPS and break a plain-HTTP offline/internal deployment with
     no TLS certificate. **This is only correct for that offline/internal
-    target** — a public deployment needs real TLS, added at the nginx layer
-    (see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)) rather than by changing
-    this directive.
+    target** — a public deployment needs real TLS, either terminated by
+    nginx or by the app itself via `TLS_KEY_PATH`/`TLS_CERT_PATH`
+    (see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)) rather than by
+    changing this directive.
 - **Brute-force**: `/auth/login` and `/auth/register` are rate-limited
   (`src/middlewares/rateLimit.middleware.js`, `express-rate-limit`) to 10
   requests per IP per 15 minutes. `app.set('trust proxy', 1)` in `src/app.js`
   makes this (and access logs) see the real client IP when running behind
-  the nginx reverse proxy described in `docs/DEPLOYMENT.md`, instead of
-  nginx's own IP.
+  a reverse proxy like nginx, instead of the proxy's own IP — harmless when
+  there's no proxy (the PM2-only deployment option).
 - **No fixed default admin password**: the seeder generates a random one
   and prints it once (see `.env.example` / `docs/DEPLOYMENT.md`), rather
   than every deployment starting with the same known credentials.
