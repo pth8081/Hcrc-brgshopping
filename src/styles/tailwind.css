@@ -74,6 +74,12 @@
 
   .searchbar { @apply relative max-w-[1140px] mx-auto px-4 overflow-hidden max-h-0 transition-[max-height] duration-200 ease-in-out; }
   .searchbar.open { @apply pb-3 overflow-visible; max-height: 70px; }
+  /* Always-visible search on mobile — one less tap than the desktop
+     tap-to-reveal pattern, matching mainstream shopping apps. */
+  @media (max-width: 768px) {
+    .searchbar { @apply pb-3 overflow-visible; max-height: 70px; }
+    #search-btn { display: none; }
+  }
   .searchbar form { @apply flex items-center bg-white/15 rounded-full py-1 pr-1 pl-4; }
   .searchbar input { @apply flex-1 bg-transparent border-0 py-2 text-sm text-white focus:outline-0 placeholder:text-white/75; }
   .searchbar button { @apply bg-white text-brand-dark border-0 w-8 h-8 rounded-full cursor-pointer text-sm shrink-0 flex items-center justify-center; }
@@ -110,6 +116,12 @@
   /* ---------- main / hero ---------- */
   main { @apply flex-1 pb-10; }
 
+  /* Two columns on desktop — rotating promo text + a static spotlight of a
+     real on-sale product; stacks on narrow screens. */
+  .hero-v2 { @apply grid; grid-template-columns: 1.15fr 1fr; }
+  @media (max-width: 860px) {
+    .hero-v2 { grid-template-columns: 1fr; }
+  }
   .hero-carousel { @apply relative overflow-hidden bg-brand-darker; }
   .hero-slide { @apply hidden px-5 py-[34px] min-h-[190px] items-center justify-center flex-col text-center text-white; }
   .hero-slide.active { @apply flex; }
@@ -123,15 +135,22 @@
   .hero-slide.tone-brand { background: linear-gradient(120deg, var(--color-brand) 0%, var(--color-brand-darker) 100%); }
   .hero-slide.tone-slate { background: linear-gradient(120deg, #3a4453 0%, var(--color-contact) 100%); }
 
+  .hero-spot { @apply flex items-center justify-center p-6 bg-brand-darker/40; }
+  .hero-spot-card { @apply bg-surface rounded-2xl p-[18px] w-full max-w-[280px] shadow-card; }
+  .hero-spot-card .thumb { @apply aspect-square rounded-xl text-[26px]; }
+  .hero-spot-card .card-cat { @apply mt-3; }
+
   .catgrid-section { @apply pt-[26px] pb-2; }
   .catgrid-section h2 { @apply text-[17px] tracking-[0.01em]; }
   .catgrid { @apply mt-3.5 grid gap-2.5; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
   .cattile { @apply flex flex-col items-center gap-2 text-center text-[11.5px] font-semibold text-ink leading-[1.3]; }
-  .cattile .icon-box { @apply w-full aspect-square rounded-[14px] flex items-center justify-center text-white transition-transform duration-150; }
+  .cattile .icon-box {
+    @apply w-full aspect-square rounded-[14px] flex items-center justify-center text-brand-dark transition-transform duration-150;
+    background: var(--color-brand-soft);
+  }
   .cattile:hover .icon-box { @apply -translate-y-0.5; }
   .cattile .icon-box svg { @apply w-[34%] h-[34%]; }
-  .cattile:nth-child(4n+1) .icon-box, .cattile:nth-child(4n+4) .icon-box { background: var(--color-brand); }
-  .cattile:nth-child(4n+2) .icon-box, .cattile:nth-child(4n+3) .icon-box { background: #c9c2c1; }
+  .cattile .count { @apply block text-[10.5px] font-medium text-faint mt-0.5; }
 
   .promo-banner {
     @apply my-[22px] rounded-xl overflow-hidden px-6 py-[26px] border border-line flex items-center justify-between gap-5 flex-wrap;
@@ -148,6 +167,22 @@
   .section-head { @apply flex items-baseline justify-between my-[30px] mb-4; }
   .section-head h2 { @apply text-[19px]; }
   .section-head .count { @apply text-faint text-[13px]; }
+
+  /* ---------- filter/sort bar ---------- */
+  .filter-bar { @apply flex items-center gap-2.5 py-3.5 border-b border-line mb-[18px] flex-wrap; }
+  .filter-chip {
+    @apply inline-flex items-center gap-1.5 border border-line bg-surface rounded-full px-3.5 py-1.5 text-[13px] font-semibold text-ink whitespace-nowrap;
+    @apply hover:border-brand;
+  }
+  .filter-chip.active { @apply bg-brand-soft border-brand text-brand-dark; }
+  .sort-select {
+    @apply ml-auto border border-line rounded-[9px] px-3 py-1.5 text-[13px] font-semibold bg-surface;
+  }
+  @media (max-width: 640px) {
+    .filter-bar { flex-wrap: nowrap; overflow-x: auto; margin: 0 -20px 14px; padding: 12px 20px; -ms-overflow-style: none; scrollbar-width: none; }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .sort-select { margin-left: 0; }
+  }
 
   /* ---------- product grid & card ---------- */
   .grid { @apply grid gap-[18px]; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
@@ -211,6 +246,20 @@
   .cart-row .thumb { @apply w-14 h-14 rounded-[9px] text-[15px]; }
   .cart-row-name { @apply font-semibold text-sm; }
   .cart-row-price { @apply text-[12.5px] text-muted; font-variant-numeric: tabular-nums; }
+  /* Below 640px the 4-column row has no room left for the qty stepper —
+     it was shrinking down to ~2px and becoming unusable. Wrap into two
+     rows instead: thumb+name+remove on top, qty+total below. */
+  @media (max-width: 640px) {
+    .cart-row {
+      grid-template-columns: 56px 1fr;
+      grid-template-areas: "thumb info" "qty end";
+      row-gap: 10px;
+    }
+    .cart-row .thumb { grid-area: thumb; }
+    .cart-row-info { grid-area: info; }
+    .cart-row .qty { grid-area: qty; justify-self: start; }
+    .cart-row-end { grid-area: end; justify-self: end; }
+  }
   .qty { @apply flex items-center border border-line rounded-lg overflow-hidden; }
   .qty button { @apply w-7 h-7 bg-bg border-0 cursor-pointer text-[15px]; }
   .qty span { @apply w-8 text-center font-semibold text-[13.5px]; font-variant-numeric: tabular-nums; }
@@ -323,7 +372,7 @@
   .footer-contact { @apply bg-contact text-[#dfe3e8] px-5 py-[26px] text-center; }
   .footer-contact .big { @apply text-white text-[22px] font-extrabold mt-1; }
 
-  .footer-copyright { @apply bg-brand-darker text-[#e9b9ba] px-5 py-[22px] text-center text-[12.5px] leading-[1.8]; }
+  .footer-copyright { @apply bg-brand-darker text-[#e9b9ba] px-5 py-[22px] pb-[34px] text-center text-[12.5px] leading-[1.8]; }
   .footer-copyright strong { @apply text-[#fce8e8]; }
 
   .footer-payments { @apply bg-white border-t border-line px-5 py-4 flex justify-center gap-2.5 flex-wrap; }
@@ -332,6 +381,32 @@
   /* ---------- floating chat ---------- */
   .chat-fab { @apply fixed right-5 bottom-5 w-[54px] h-[54px] rounded-full bg-brand text-white border-0 shadow-card cursor-pointer flex items-center justify-center z-50 hover:bg-brand-dark; }
   .chat-fab svg { @apply w-[26px] h-[26px]; }
+  /* Clears the mobile bottom nav bar instead of sitting on top of it */
+  @media (max-width: 768px) {
+    .chat-fab { bottom: 78px; }
+  }
+
+  /* ---------- mobile bottom tab bar ---------- */
+  .bottom-nav { display: none; }
+  @media (max-width: 768px) {
+    body { padding-bottom: 60px; }
+    .bottom-nav {
+      display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 55;
+      background: var(--color-surface); border-top: 1px solid var(--color-line);
+      box-shadow: 0 -4px 16px -8px rgba(0, 0, 0, .15);
+    }
+    .bottom-nav a {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 8px 4px 10px; font-size: 11px; font-weight: 600; color: var(--color-faint); position: relative;
+    }
+    .bottom-nav a svg { width: 21px; height: 21px; }
+    .bottom-nav a.active { color: var(--color-brand); }
+    .bn-badge {
+      position: absolute; top: 3px; right: 22%; background: var(--color-gold); color: #fff;
+      font-size: 9px; font-weight: 800; min-width: 15px; height: 15px; border-radius: 999px;
+      display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--color-surface);
+    }
+  }
 }
 
 @keyframes sk {

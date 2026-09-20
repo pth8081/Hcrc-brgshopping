@@ -9,6 +9,9 @@ const ICON = {
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.5-4.5"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5z"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg>',
 };
 
 const STATIC_LINKS = [
@@ -95,9 +98,17 @@ export async function renderLayout({ activeCategoryId } = {}) {
     </div>
   `;
 
+  const accountHref = user ? '/orders.html' : '/login.html';
+  const path = location.pathname;
   document.body.insertAdjacentHTML(
     'beforeend',
-    `<button class="chat-fab print:hidden" id="chat-fab" aria-label="Chat hỗ trợ">${ICON.chat}</button>`
+    `<button class="chat-fab print:hidden" id="chat-fab" aria-label="Chat hỗ trợ">${ICON.chat}</button>
+     <nav class="bottom-nav print:hidden" id="bottom-nav">
+       <a href="/index.html" class="${path === '/index.html' || path === '/' ? 'active' : ''}">${ICON.home}Trang chủ</a>
+       <a href="#" id="bottom-nav-categories">${ICON.grid}Danh mục</a>
+       <a href="/cart.html" class="${path === '/cart.html' ? 'active' : ''}">${ICON.cart}Giỏ hàng<span class="bn-badge hidden" id="cart-count-mobile">0</span></a>
+       <a href="${accountHref}" class="${['/orders.html', '/login.html', '/register.html'].includes(path) ? 'active' : ''}">${ICON.user}Tài khoản</a>
+     </nav>`
   );
 
   // Printing an invoice (order-detail.js) should never include chrome.
@@ -124,6 +135,10 @@ function wireHeader() {
   document.getElementById('drawer-open').addEventListener('click', openDrawer);
   document.getElementById('drawer-close').addEventListener('click', closeDrawer);
   overlay.addEventListener('click', closeDrawer);
+  document.getElementById('bottom-nav-categories')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openDrawer();
+  });
 
   const searchbar = document.getElementById('searchbar');
   document.getElementById('search-btn').addEventListener('click', () => {
@@ -271,17 +286,26 @@ function notificationText(n) {
 
 export async function refreshCartCount() {
   const el = document.getElementById('cart-count');
-  if (!el) return;
+  const mobileEl = document.getElementById('cart-count-mobile');
+  if (!el && !mobileEl) return;
+
+  const setCount = (count) => {
+    if (el) el.textContent = String(count);
+    if (mobileEl) {
+      mobileEl.textContent = String(count);
+      mobileEl.classList.toggle('hidden', count === 0);
+    }
+  };
+
   if (!getToken()) {
-    el.textContent = '0';
+    setCount(0);
     return;
   }
   try {
     const { data } = await apiFetch('/cart');
-    const count = data.items.reduce((sum, item) => sum + item.quantity, 0);
-    el.textContent = String(count);
+    setCount(data.items.reduce((sum, item) => sum + item.quantity, 0));
   } catch {
-    el.textContent = '0';
+    setCount(0);
   }
 }
 

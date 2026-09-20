@@ -50,7 +50,7 @@ function cartRow(item) {
   return `
     <div class="cart-row" data-item="${item.id}">
       <div class="thumb" data-thumb-name="${escapeHtml(p?.name || 'SP')}">${escapeHtml(initials(p?.name || 'SP'))}</div>
-      <div>
+      <div class="cart-row-info">
         <a href="/product.html?slug=${encodeURIComponent(p?.slug || '')}" class="cart-row-name">${escapeHtml(p?.name || 'Sản phẩm đã bị xoá')}</a>
         <div class="cart-row-price">${formatVND(item.priceAtAdd)} / sản phẩm</div>
       </div>
@@ -59,7 +59,7 @@ function cartRow(item) {
         <span class="qty-value">${item.quantity}</span>
         <button type="button" data-step="1">+</button>
       </div>
-      <div class="flex items-center gap-3.5">
+      <div class="cart-row-end flex items-center gap-3.5">
         <div class="cart-row-total">${formatVND(Number(item.priceAtAdd) * item.quantity)}</div>
         <button class="btn btn-ghost btn-sm" data-remove title="Xoá">✕</button>
       </div>

@@ -36,11 +36,19 @@ const bestSellers = asyncHandler(async (req, res) => {
   res.json({ success: true, data: ordered });
 });
 
+const SORTS = {
+  newest: [['createdAt', 'DESC']],
+  price_asc: [[sequelize.fn('COALESCE', sequelize.col('salePrice'), sequelize.col('price')), 'ASC']],
+  price_desc: [[sequelize.fn('COALESCE', sequelize.col('salePrice'), sequelize.col('price')), 'DESC']],
+};
+
 const list = asyncHandler(async (req, res) => {
-  const { categoryId, search, page = 1, limit = 20 } = req.query;
+  const { categoryId, search, page = 1, limit = 20, sort, onSale, maxPrice } = req.query;
   const where = { isActive: true };
   if (categoryId) where.categoryId = categoryId;
   if (search) where.name = { [Op.like]: `%${search}%` };
+  if (onSale === 'true') where.salePrice = { [Op.ne]: null };
+  if (maxPrice) where.price = { [Op.lte]: Number(maxPrice) };
 
   const offset = (Number(page) - 1) * Number(limit);
   const { rows, count } = await Product.findAndCountAll({
@@ -48,7 +56,7 @@ const list = asyncHandler(async (req, res) => {
     include: [{ model: Category, as: 'category', attributes: ['id', 'name', 'slug'] }],
     limit: Number(limit),
     offset,
-    order: [['createdAt', 'DESC']],
+    order: SORTS[sort] || SORTS.newest,
   });
 
   if (search) {

@@ -1,5 +1,5 @@
 const slugify = require('slugify');
-const { Category } = require('../models');
+const { sequelize, Category, Product } = require('../models');
 const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -7,8 +7,19 @@ const list = asyncHandler(async (req, res) => {
   const categories = await Category.findAll({
     where: { isActive: true },
     order: [['name', 'ASC']],
+    raw: true,
   });
-  res.json({ success: true, data: categories });
+
+  const counts = await Product.findAll({
+    where: { isActive: true },
+    attributes: ['categoryId', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+    group: ['categoryId'],
+    raw: true,
+  });
+  const countByCategory = new Map(counts.map((c) => [c.categoryId, Number(c.count)]));
+
+  const data = categories.map((c) => ({ ...c, productCount: countByCategory.get(c.id) || 0 }));
+  res.json({ success: true, data });
 });
 
 const getBySlug = asyncHandler(async (req, res) => {

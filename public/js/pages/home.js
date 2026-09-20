@@ -2,12 +2,16 @@ import { apiFetch, getRecentlyViewed, getToken, applyThumbGradients } from '../a
 import { renderLayout, escapeHtml } from '../layout.js';
 import { categoryIcon } from '../icons.js';
 import { promoCard } from '../promoHelpers.js';
-import { renderProductGrid, recentlyViewedCard } from '../productGrid.js';
+import { renderProductGrid, recentlyViewedCard, productCard, wireAddToCart } from '../productGrid.js';
 
 const params = new URLSearchParams(location.search);
 const categoryId = params.get('category');
 const search = params.get('q');
+const sort = params.get('sort');
+const onSale = params.get('onSale') === 'true';
+const maxPrice = params.get('maxPrice');
 const isHomepage = !categoryId && !search;
+const hasExplicitFilter = Boolean(sort || onSale || maxPrice);
 
 const HERO_SLIDES = [
   { tone: 'tone-brand', eyebrow: 'Ưu đãi hôm nay', title: 'Mua sắm dễ dàng, giao nhanh tận nơi', body: 'Toàn bộ sản phẩm dưới đây lấy trực tiếp từ API Node.js chạy trên MSSQL.' },
@@ -17,17 +21,35 @@ const HERO_SLIDES = [
 
 renderLayout({ activeCategoryId: categoryId });
 loadProducts();
+renderFilterBar();
 
 if (isHomepage) {
   renderHero();
+  loadHeroSpotlight();
   loadCategoryGrid();
   loadCampaigns();
   loadForYou();
   loadBestSellers();
   renderRecentlyViewed();
 } else {
-  document.getElementById('hero-carousel').hidden = true;
+  document.getElementById('hero-v2').hidden = true;
+  document.getElementById('hero-dots').hidden = true;
   document.getElementById('promo-banner').hidden = true;
+}
+
+async function loadHeroSpotlight() {
+  const wrap = document.getElementById('hero-spot');
+  try {
+    const { data } = await apiFetch('/products/best-sellers?limit=4');
+    const spotlight = data.find((p) => p.salePrice) || data[0];
+    if (!spotlight) return;
+    wrap.innerHTML = `<div class="hero-spot-card">${productCard(spotlight)}</div>`;
+    applyThumbGradients(wrap);
+    wireAddToCart(wrap);
+    wrap.hidden = false;
+  } catch {
+    wrap.hidden = true;
+  }
 }
 
 async function loadCampaigns() {
@@ -83,23 +105,20 @@ function renderRecentlyViewed() {
 
 function renderHero() {
   const el = document.getElementById('hero-carousel');
-  el.innerHTML = `
-    ${HERO_SLIDES.map(
-      (s, i) => `
+  const dotsEl = document.getElementById('hero-dots');
+  el.innerHTML = HERO_SLIDES.map(
+    (s, i) => `
       <div class="hero-slide ${s.tone} ${i === 0 ? 'active' : ''}" data-slide="${i}">
         <span class="eyebrow2">${escapeHtml(s.eyebrow)}</span>
         <h2>${escapeHtml(s.title)}</h2>
         <p>${escapeHtml(s.body)}</p>
       </div>`
-    ).join('')}
-    <div class="hero-dots">
-      ${HERO_SLIDES.map((_, i) => `<button data-dot="${i}" class="${i === 0 ? 'active' : ''}" aria-label="Slide ${i + 1}"></button>`).join('')}
-    </div>
-  `;
+  ).join('');
+  dotsEl.innerHTML = HERO_SLIDES.map((_, i) => `<button data-dot="${i}" class="${i === 0 ? 'active' : ''}" aria-label="Slide ${i + 1}"></button>`).join('');
 
   let current = 0;
   const slides = el.querySelectorAll('.hero-slide');
-  const dots = el.querySelectorAll('.hero-dots button');
+  const dots = dotsEl.querySelectorAll('button');
   const show = (idx) => {
     slides[current].classList.remove('active');
     dots[current].classList.remove('active');
@@ -109,6 +128,48 @@ function renderHero() {
   };
   dots.forEach((dot, i) => dot.addEventListener('click', () => show(i)));
   setInterval(() => show((current + 1) % slides.length), 5000);
+}
+
+function filterUrl(overrides) {
+  const p = new URLSearchParams(location.search);
+  Object.entries(overrides).forEach(([key, value]) => {
+    if (value === null) p.delete(key);
+    else p.set(key, value);
+  });
+  p.delete('page');
+  const qs = p.toString();
+  return `/index.html${qs ? `?${qs}` : ''}`;
+}
+
+const SORT_LABEL = { newest: 'Mới nhất', price_asc: 'Giá: Thấp đến cao', price_desc: 'Giá: Cao đến thấp' };
+
+async function renderFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  try {
+    const { data: categories } = await apiFetch('/categories');
+
+    const chips = [
+      `<a class="filter-chip${!categoryId ? ' active' : ''}" href="${filterUrl({ category: null })}">Tất cả</a>`,
+      ...categories.map(
+        (c) => `<a class="filter-chip${String(categoryId) === String(c.id) ? ' active' : ''}" href="${filterUrl({ category: c.id })}">${escapeHtml(c.name)}</a>`
+      ),
+      `<a class="filter-chip${maxPrice === '15000000' ? ' active' : ''}" href="${filterUrl({ maxPrice: maxPrice === '15000000' ? null : '15000000' })}">Dưới 15 triệu</a>`,
+      `<a class="filter-chip${onSale ? ' active' : ''}" href="${filterUrl({ onSale: onSale ? null : 'true' })}">Đang giảm giá</a>`,
+    ].join('');
+
+    const sortOptions = Object.entries(SORT_LABEL)
+      .map(([value, label]) => `<option value="${value}" ${(!sort && value === 'newest') || sort === value ? 'selected' : ''}>${label}</option>`)
+      .join('');
+
+    bar.innerHTML = `${chips}<select class="sort-select" id="sort-select">${sortOptions}</select>`;
+    bar.hidden = false;
+
+    document.getElementById('sort-select').addEventListener('change', (e) => {
+      window.location.href = filterUrl({ sort: e.target.value === 'newest' ? null : e.target.value });
+    });
+  } catch {
+    bar.hidden = true;
+  }
 }
 
 async function loadCategoryGrid() {
@@ -122,7 +183,7 @@ async function loadCategoryGrid() {
         (c) => `
         <a class="cattile" href="/index.html?category=${c.id}">
           <span class="icon-box">${categoryIcon(c.name)}</span>
-          <span>${escapeHtml(c.name)}</span>
+          <span>${escapeHtml(c.name)}<span class="count">${c.productCount} sản phẩm</span></span>
         </a>`
       )
       .join('');
@@ -140,6 +201,9 @@ async function loadProducts() {
   const query = new URLSearchParams();
   if (categoryId) query.set('categoryId', categoryId);
   if (search) query.set('search', search);
+  if (sort) query.set('sort', sort);
+  if (onSale) query.set('onSale', 'true');
+  if (maxPrice) query.set('maxPrice', maxPrice);
   query.set('limit', '24');
 
   try {
@@ -159,7 +223,7 @@ async function loadProducts() {
       return;
     }
 
-    const ordered = isHomepage && getToken() ? await personalizeOrder(data) : data;
+    const ordered = isHomepage && !hasExplicitFilter && getToken() ? await personalizeOrder(data) : data;
     renderProductGrid(grid, ordered);
   } catch (err) {
     grid.innerHTML = `<div class="empty-state col-span-full">Không tải được sản phẩm: ${escapeHtml(err.message)}</div>`;
