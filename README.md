@@ -87,9 +87,13 @@ cp .env.example .env
 
 ```bash
 npm run db:migrate    # creates tables via src/migrations
-npm run db:seed       # optional: creates an admin@brgshopping.local user
+npm run db:seed       # creates the initial admin account
 npm run dev           # http://localhost:3000
 ```
+
+`db:seed` prints a randomly generated admin password once (unless you set
+`ADMIN_PASSWORD` in `.env` first) — see `.env.example` and
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for why it isn't a fixed default.
 
 Schema changes always go through `npm run db:migrate` (add a new migration
 file rather than editing an applied one) — the app itself only calls
@@ -125,6 +129,14 @@ Send `Authorization: Bearer <token>` for user/admin routes.
 ### 5. Migrating data from the live Odoo database
 
 See [`docs/MIGRATION.md`](docs/MIGRATION.md).
+
+## Deployment
+
+The setup above (`npm run dev`, a local/Docker MSSQL) is for development.
+For a real server — especially one reachable from the public internet —
+see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): systemd/PM2, nginx as a
+TLS-terminating reverse proxy, firewall, and backups. Template config files
+live in [`deploy/`](deploy/).
 
 ## Frontend (storefront)
 
@@ -183,7 +195,19 @@ Tailwind or reach the internet.
     directive list — its default directive set otherwise adds
     `upgrade-insecure-requests`, which would make browsers rewrite every
     request to HTTPS and break a plain-HTTP offline/internal deployment with
-    no TLS certificate.
+    no TLS certificate. **This is only correct for that offline/internal
+    target** — a public deployment needs real TLS, added at the nginx layer
+    (see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)) rather than by changing
+    this directive.
+- **Brute-force**: `/auth/login` and `/auth/register` are rate-limited
+  (`src/middlewares/rateLimit.middleware.js`, `express-rate-limit`) to 10
+  requests per IP per 15 minutes. `app.set('trust proxy', 1)` in `src/app.js`
+  makes this (and access logs) see the real client IP when running behind
+  the nginx reverse proxy described in `docs/DEPLOYMENT.md`, instead of
+  nginx's own IP.
+- **No fixed default admin password**: the seeder generates a random one
+  and prints it once (see `.env.example` / `docs/DEPLOYMENT.md`), rather
+  than every deployment starting with the same known credentials.
 
 ## Next steps
 

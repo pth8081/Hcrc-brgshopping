@@ -10,6 +10,11 @@ const { notFoundHandler, errorHandler } = require('./middlewares/error.middlewar
 
 const app = express();
 
+// Behind a reverse proxy (nginx in production) so req.ip / X-Forwarded-For
+// reflect the real client, not the proxy — needed for rate limiting and
+// accurate access logs. Harmless when there's no proxy (e.g. local dev).
+app.set('trust proxy', 1);
+
 // Strict CSP: every directive is 'self' (or 'none') — no 'unsafe-inline' or
 // 'unsafe-eval' anywhere. This only works because the frontend has no inline
 // <script>/<style> blocks and no style="..." attributes: all styling comes
