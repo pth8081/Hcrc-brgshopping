@@ -66,11 +66,16 @@ CentOS/RHEL: swap the first line for
 ```bash
 git clone <your repo URL> /home/deploy/brgshopping
 cd /home/deploy/brgshopping
-npm ci --omit=dev
+npm ci
 ```
 
-`npm run build:css` is **not** needed here — `public/css/style.css` is a
-committed build artifact; it's already in the repo.
+This installs devDependencies too — deliberately: `sequelize-cli` (a
+devDependency) is what step 4 below uses to run migrations/seeding, so
+skipping it with `npm ci --omit=dev` would make `npx sequelize-cli` fall
+back to fetching a copy from the registry on the spot instead of using the
+version pinned in `package-lock.json`. `npm run build:css` itself is
+**not** needed here regardless — `public/css/style.css` is a committed
+build artifact; it's already in the repo.
 
 ## 4. Configure the environment, create the schema, seed the admin
 
