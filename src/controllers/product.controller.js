@@ -71,6 +71,23 @@ const list = asyncHandler(async (req, res) => {
   });
 });
 
+// Batch lookup for hydrating the guest cart (localStorage only stores
+// productId + a price snapshot) with current name/thumbnail/stock without
+// one request per line item.
+const byIds = asyncHandler(async (req, res) => {
+  const ids = String(req.query.ids || '')
+    .split(',')
+    .map((s) => Number(s.trim()))
+    .filter(Boolean);
+  if (ids.length === 0) return res.json({ success: true, data: [] });
+
+  const products = await Product.findAll({
+    where: { id: ids, isActive: true },
+    include: [{ model: Category, as: 'category', attributes: ['id', 'name', 'slug'] }],
+  });
+  res.json({ success: true, data: products });
+});
+
 const getBySlug = asyncHandler(async (req, res) => {
   const product = await Product.findOne({
     where: { slug: req.params.slug },
@@ -164,4 +181,4 @@ const alsoBought = asyncHandler(async (req, res) => {
   res.json({ success: true, data: ordered });
 });
 
-module.exports = { list, getBySlug, create, update, remove, bestSellers, recordView, alsoBought };
+module.exports = { list, getBySlug, create, update, remove, bestSellers, recordView, alsoBought, byIds };

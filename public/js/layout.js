@@ -1,4 +1,4 @@
-import { getUser, clearSession, apiFetch, getToken, showToast, formatDate, ORDER_STATUS_LABEL } from './api.js';
+import { getUser, clearSession, apiFetch, getToken, showToast, formatDate, ORDER_STATUS_LABEL, guestCartCount, getGuestChatToken } from './api.js';
 import { categoryIcon } from './icons.js';
 
 const ICON = {
@@ -12,6 +12,9 @@ const ICON = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
   grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
   user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg>',
+  zalo: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 5.9 2 10.7c0 2.8 1.6 5.3 4.1 6.9-.1.9-.5 2.3-1.4 3.6 0 0 2.4-.5 4.3-1.9 1 .3 2 .4 3 .4 5.5 0 10-3.9 10-8.7C22 5.9 17.5 2 12 2z"/></svg>',
+  messenger: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.1 2 11.2c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.2 1.9.4 2.9.4 5.5 0 10-4.1 10-9.2S17.5 2 12 2zm1 12.4-2.6-2.8-5 2.8 5.5-5.8 2.6 2.8 5-2.8-5.5 5.8z"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg>',
 };
 
 const STATIC_LINKS = [
@@ -20,6 +23,7 @@ const STATIC_LINKS = [
   { label: 'Thẻ thành viên', href: '/page.html?slug=the-thanh-vien' },
   { label: 'Tuyển dụng', href: '/page.html?slug=tuyen-dung' },
   { label: 'Tin tức', href: '/news.html' },
+  { label: 'Tra cứu đơn hàng', href: '/order-lookup.html' },
   { label: 'Liên hệ', href: '/page.html?slug=lien-he' },
 ];
 
@@ -103,6 +107,32 @@ export async function renderLayout({ activeCategoryId } = {}) {
   document.body.insertAdjacentHTML(
     'beforeend',
     `<button class="chat-fab print:hidden" id="chat-fab" aria-label="Chat hỗ trợ">${ICON.chat}</button>
+     <div class="chat-launcher-menu print:hidden" id="chat-launcher-menu" hidden>
+       <div class="head">Chat với BRG Shopping<span>Thường trả lời trong vài phút</span></div>
+       <div class="chat-channel" id="chat-channel-web">
+         <span class="ico web">${ICON.chat}</span>
+         <div><div class="label">Chat trên website</div><div class="sub">Nhắn trực tiếp, xem lại lịch sử</div></div>
+       </div>
+       <div class="chat-channel" id="chat-channel-zalo" hidden>
+         <span class="ico zalo">${ICON.zalo}</span>
+         <div><div class="label">Chat qua Zalo</div><div class="sub">Mở Zalo OA của BRG Shopping</div></div>
+       </div>
+       <div class="chat-channel" id="chat-channel-messenger" hidden>
+         <span class="ico messenger">${ICON.messenger}</span>
+         <div><div class="label">Chat qua Messenger</div><div class="sub">Mở Facebook Page của BRG Shopping</div></div>
+       </div>
+     </div>
+     <div class="chat-panel print:hidden" id="chat-panel" hidden>
+       <div class="head">
+         <div><b>Hỗ trợ BRG Shopping</b><span>Đang trực tuyến</span></div>
+         <button type="button" id="chat-panel-close" aria-label="Đóng">${ICON.close}</button>
+       </div>
+       <div class="body" id="chat-panel-body"></div>
+       <form class="composer" id="chat-composer">
+         <input type="text" id="chat-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+         <button type="submit" aria-label="Gửi">${ICON.send}</button>
+       </form>
+     </div>
      <nav class="bottom-nav print:hidden" id="bottom-nav">
        <a href="/index.html" class="${path === '/index.html' || path === '/' ? 'active' : ''}">${ICON.home}Trang chủ</a>
        <a href="#" id="bottom-nav-categories">${ICON.grid}Danh mục</a>
@@ -119,6 +149,7 @@ export async function renderLayout({ activeCategoryId } = {}) {
   loadDrawerCategories(activeCategoryId);
   refreshCartCount();
   loadNotifications();
+  initChatWidget();
 }
 
 function wireHeader() {
@@ -162,8 +193,6 @@ function wireHeader() {
       dropdown.classList.remove('open');
     }
   });
-  document.getElementById('chat-fab').addEventListener('click', () => showToast('Tính năng chat đang được phát triển'));
-
   const logoutLink = document.getElementById('logout-link');
   if (logoutLink) {
     logoutLink.addEventListener('click', (e) => {
@@ -298,7 +327,7 @@ export async function refreshCartCount() {
   };
 
   if (!getToken()) {
-    setCount(0);
+    setCount(guestCartCount());
     return;
   }
   try {
@@ -319,4 +348,115 @@ function footerAccordionItem(title, body) {
 
 export function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// --- Chat widget: a channel picker (web / Zalo / Messenger) plus a small
+// polling-based web chat panel. Works for both a logged-in user (identified
+// by the JWT already sent on every apiFetch call) and an anonymous guest
+// (identified by a random token kept in localStorage) — see chat.controller.js.
+let chatConversationId = null;
+let chatLastMessageId = 0;
+let chatPollTimer = null;
+
+function initChatWidget() {
+  const fab = document.getElementById('chat-fab');
+  const menu = document.getElementById('chat-launcher-menu');
+  if (!fab || !menu) return;
+
+  fab.addEventListener('click', () => {
+    const panel = document.getElementById('chat-panel');
+    if (!panel.hidden) {
+      closeChatPanel();
+      return;
+    }
+    menu.hidden = !menu.hidden;
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!menu.hidden && !menu.contains(e.target) && e.target !== fab && !fab.contains(e.target)) {
+      menu.hidden = true;
+    }
+  });
+
+  document.getElementById('chat-channel-web').addEventListener('click', () => {
+    menu.hidden = true;
+    openChatPanel();
+  });
+  document.getElementById('chat-panel-close').addEventListener('click', closeChatPanel);
+  document.getElementById('chat-composer').addEventListener('submit', sendChatMessage);
+
+  apiFetch('/config/public')
+    .then(({ data }) => {
+      if (data.zaloUrl) {
+        const el = document.getElementById('chat-channel-zalo');
+        el.hidden = false;
+        el.addEventListener('click', () => window.open(data.zaloUrl, '_blank', 'noopener'));
+      }
+      if (data.messengerUrl) {
+        const el = document.getElementById('chat-channel-messenger');
+        el.hidden = false;
+        el.addEventListener('click', () => window.open(data.messengerUrl, '_blank', 'noopener'));
+      }
+    })
+    .catch(() => {});
+}
+
+async function openChatPanel() {
+  const panel = document.getElementById('chat-panel');
+  panel.hidden = false;
+
+  if (!chatConversationId) {
+    try {
+      const body = getToken() ? {} : { guestToken: getGuestChatToken() };
+      const { data } = await apiFetch('/chat/start', { method: 'POST', body: JSON.stringify(body) });
+      chatConversationId = data.id;
+    } catch {
+      showToast('Không thể kết nối chat, vui lòng thử lại sau', true);
+      panel.hidden = true;
+      return;
+    }
+  }
+
+  await pollChatMessages();
+  clearInterval(chatPollTimer);
+  chatPollTimer = setInterval(pollChatMessages, 4000);
+}
+
+function closeChatPanel() {
+  document.getElementById('chat-panel').hidden = true;
+  clearInterval(chatPollTimer);
+  chatPollTimer = null;
+}
+
+async function pollChatMessages() {
+  if (!chatConversationId) return;
+  const guestParam = getToken() ? '' : `&guestToken=${encodeURIComponent(getGuestChatToken())}`;
+  try {
+    const { data } = await apiFetch(`/chat/${chatConversationId}/messages?after=${chatLastMessageId}${guestParam}`);
+    if (data.length === 0) return;
+    const body = document.getElementById('chat-panel-body');
+    data.forEach((m) => {
+      chatLastMessageId = Math.max(chatLastMessageId, m.id);
+      body.insertAdjacentHTML('beforeend', `<div class="chat-bubble ${m.senderType === 'admin' ? 'in' : 'out'}">${escapeHtml(m.body)}</div>`);
+    });
+    body.scrollTop = body.scrollHeight;
+  } catch {
+    // Transient poll failure — the next tick will retry.
+  }
+}
+
+async function sendChatMessage(e) {
+  e.preventDefault();
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !chatConversationId) return;
+  input.value = '';
+
+  const body = getToken() ? { body: text } : { body: text, guestToken: getGuestChatToken() };
+  try {
+    await apiFetch(`/chat/${chatConversationId}/messages`, { method: 'POST', body: JSON.stringify(body) });
+    await pollChatMessages();
+  } catch (err) {
+    showToast(err.message, true);
+  }
 }

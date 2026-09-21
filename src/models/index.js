@@ -14,6 +14,8 @@ const News = require('./news.model');
 const Promotion = require('./promotion.model');
 const ProductView = require('./productView.model');
 const SearchLog = require('./searchLog.model');
+const ChatConversation = require('./chatConversation.model');
+const ChatMessage = require('./chatMessage.model');
 
 // --- Associations ---
 User.hasMany(Address, { foreignKey: 'userId', as: 'addresses', onDelete: 'CASCADE' });
@@ -59,6 +61,11 @@ ProductView.belongsTo(Product, { foreignKey: 'productId' });
 User.hasMany(SearchLog, { foreignKey: 'userId' });
 SearchLog.belongsTo(User, { foreignKey: 'userId' });
 
+User.hasMany(ChatConversation, { foreignKey: 'userId' });
+ChatConversation.belongsTo(User, { foreignKey: 'userId' });
+ChatConversation.hasMany(ChatMessage, { foreignKey: 'conversationId', as: 'messages', onDelete: 'CASCADE' });
+ChatMessage.belongsTo(ChatConversation, { foreignKey: 'conversationId' });
+
 module.exports = {
   sequelize,
   User,
@@ -75,4 +82,6 @@ module.exports = {
   Promotion,
   ProductView,
   SearchLog,
+  ChatConversation,
+  ChatMessage,
 };

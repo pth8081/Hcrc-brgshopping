@@ -1,4 +1,4 @@
-import { apiFetch, formatVND, requireAuth, showToast } from '../api.js';
+import { apiFetch, formatVND, getToken, showToast, getGuestCart, clearGuestCart } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
 
 renderLayout({});
@@ -7,8 +7,16 @@ let subtotal = 0;
 let shippingFee = 0;
 let appliedPromo = null; // { code, promotionId, title, discountAmount }
 
-if (requireAuth()) {
+const PAYMENT_INFO = {
+  bank_transfer:
+    'Chuyển khoản tới: <strong>Ngân hàng ABC — STK 0123456789 — CTY TNHH BRG</strong>. Nội dung: số điện thoại của bạn. Đơn hàng sẽ được xác nhận thanh toán sau khi cửa hàng nhận được tiền.',
+  e_wallet: 'Sau khi đặt hàng, nhân viên sẽ liên hệ gửi mã QR ví điện tử để thanh toán.',
+};
+
+if (getToken()) {
   loadCheckout();
+} else {
+  loadGuestCheckout();
 }
 
 async function loadCheckout() {
@@ -17,18 +25,12 @@ async function loadCheckout() {
     const { data } = await apiFetch('/cart');
 
     if (data.items.length === 0) {
-      el.innerHTML = `
-        <div class="empty-state">
-          <div class="big-icon">🧾</div>
-          <p>Giỏ hàng trống, không có gì để thanh toán.</p>
-          <p class="mt-3.5"><a class="btn btn-primary" href="/index.html">Về trang chủ</a></p>
-        </div>`;
+      el.innerHTML = emptyCheckoutHtml();
       return;
     }
 
     subtotal = data.items.reduce((sum, item) => sum + Number(item.priceAtAdd) * item.quantity, 0);
-    const shipping = subtotal >= 500000 ? 0 : 20000;
-    shippingFee = shipping;
+    shippingFee = subtotal >= 500000 ? 0 : 20000;
 
     el.innerHTML = `
       <div class="cart-layout">
@@ -50,48 +52,26 @@ async function loadCheckout() {
               <label for="address">Địa chỉ giao hàng</label>
               <textarea id="address" name="address" rows="2" required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"></textarea>
             </div>
-            <div class="form-row">
-              <label for="paymentMethod">Phương thức thanh toán</label>
-              <select id="paymentMethod" name="paymentMethod">
-                <option value="cod">Thanh toán khi nhận hàng (COD)</option>
-                <option value="bank_transfer">Chuyển khoản ngân hàng</option>
-                <option value="e_wallet">Ví điện tử</option>
-              </select>
-            </div>
+            ${paymentMethodField()}
             <div id="payment-info" class="info-note"></div>
             <div class="form-row">
               <label for="note">Ghi chú (tuỳ chọn)</label>
               <textarea id="note" name="note" rows="2" placeholder="Giao giờ hành chính..."></textarea>
             </div>
-            <button class="btn btn-primary btn-block" type="submit" id="submit-btn">Đặt hàng — ${formatVND(subtotal + shipping)}</button>
+            <button class="btn btn-primary btn-block" type="submit" id="submit-btn">Đặt hàng — ${formatVND(subtotal + shippingFee)}</button>
           </form>
         </div>
 
         <div class="panel">
           <h3>Đơn hàng (${data.items.length} sản phẩm)</h3>
-          ${data.items
-            .map(
-              (item) => `
-            <div class="order-item-row">
-              <span>${escapeHtml(item.product?.name || 'Sản phẩm')} × ${item.quantity}</span>
-              <span>${formatVND(Number(item.priceAtAdd) * item.quantity)}</span>
-            </div>`
-            )
-            .join('')}
-          <div class="form-row mt-2.5">
-            <label for="promoCode">Mã khuyến mại</label>
-            <div class="flex gap-2">
-              <input id="promoCode" placeholder="Nhập mã (nếu có)" class="flex-1">
-              <button type="button" class="btn btn-outline btn-sm" id="apply-promo-btn">Áp dụng</button>
-            </div>
-            <div class="form-error" id="promo-error"></div>
-          </div>
+          ${data.items.map((item) => orderItemRow(item.product?.name, item.quantity, Number(item.priceAtAdd) * item.quantity)).join('')}
+          ${promoCodeField()}
           <div id="summary-rows"></div>
         </div>
       </div>`;
 
     renderSummary();
-    document.getElementById('checkout-form').addEventListener('submit', (e) => submitOrder(e));
+    document.getElementById('checkout-form').addEventListener('submit', submitOrder);
     document.getElementById('paymentMethod').addEventListener('change', updatePaymentInfo);
     document.getElementById('apply-promo-btn').addEventListener('click', applyPromoCode);
     updatePaymentInfo();
@@ -100,11 +80,115 @@ async function loadCheckout() {
   }
 }
 
-const PAYMENT_INFO = {
-  bank_transfer:
-    'Chuyển khoản tới: <strong>Ngân hàng ABC — STK 0123456789 — CTY TNHH BRG</strong>. Nội dung: số điện thoại của bạn. Đơn hàng sẽ được xác nhận thanh toán sau khi cửa hàng nhận được tiền.',
-  e_wallet: 'Sau khi đặt hàng, nhân viên sẽ liên hệ gửi mã QR ví điện tử để thanh toán.',
-};
+// Same page, no account: recipient info doubles as the order's contact info
+// (no Address row — see guestName/guestPhone/guestAddress on the Order
+// model), and the cart comes from localStorage instead of /cart.
+function loadGuestCheckout() {
+  const el = document.getElementById('checkout-content');
+  const items = getGuestCart();
+
+  if (items.length === 0) {
+    el.innerHTML = emptyCheckoutHtml();
+    return;
+  }
+
+  subtotal = items.reduce((sum, item) => sum + Number(item.salePrice || item.price) * item.quantity, 0);
+  shippingFee = subtotal >= 500000 ? 0 : 20000;
+
+  el.innerHTML = `
+    <div class="checkout-mode">
+      <a href="/login.html?next=${encodeURIComponent('/checkout.html')}">Tôi đã có tài khoản</a>
+      <span class="active">Đặt hàng không cần tài khoản</span>
+    </div>
+    <div class="cart-layout">
+      <div class="panel">
+        <h3>Thông tin nhận hàng</h3>
+        <div class="form-error" id="form-error"></div>
+        <form id="checkout-form">
+          <div class="form-grid">
+            <div class="form-row">
+              <label for="recipientName">Họ và tên</label>
+              <input id="recipientName" name="recipientName" required>
+            </div>
+            <div class="form-row">
+              <label for="phone">Số điện thoại</label>
+              <input id="phone" name="phone" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="address">Địa chỉ giao hàng</label>
+            <textarea id="address" name="address" rows="2" required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"></textarea>
+          </div>
+          <div class="form-row">
+            <label for="email">Email (không bắt buộc — để nhận thông báo đơn hàng)</label>
+            <input id="email" name="email" type="email">
+          </div>
+          <p class="guest-note">Sau khi đặt hàng thành công, bạn dùng <b>mã đơn hàng + số điện thoại</b> để tra cứu tình trạng đơn tại trang <a href="/order-lookup.html" class="text-brand-dark font-semibold">Tra cứu đơn hàng</a> — không cần đăng nhập.</p>
+          ${paymentMethodField()}
+          <div id="payment-info" class="info-note"></div>
+          <div class="form-row">
+            <label for="note">Ghi chú (tuỳ chọn)</label>
+            <textarea id="note" name="note" rows="2" placeholder="Giao giờ hành chính..."></textarea>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" id="submit-btn">Đặt hàng — ${formatVND(subtotal + shippingFee)}</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h3>Đơn hàng (${items.length} sản phẩm)</h3>
+        ${items.map((item) => orderItemRow(item.name, item.quantity, Number(item.salePrice || item.price) * item.quantity)).join('')}
+        ${promoCodeField()}
+        <div id="summary-rows"></div>
+      </div>
+    </div>`;
+
+  renderSummary();
+  document.getElementById('checkout-form').addEventListener('submit', (e) => submitGuestOrder(e, items));
+  document.getElementById('paymentMethod').addEventListener('change', updatePaymentInfo);
+  document.getElementById('apply-promo-btn').addEventListener('click', applyPromoCode);
+  updatePaymentInfo();
+}
+
+function emptyCheckoutHtml() {
+  return `
+    <div class="empty-state">
+      <div class="big-icon">🧾</div>
+      <p>Giỏ hàng trống, không có gì để thanh toán.</p>
+      <p class="mt-3.5"><a class="btn btn-primary" href="/index.html">Về trang chủ</a></p>
+    </div>`;
+}
+
+function orderItemRow(name, quantity, lineTotal) {
+  return `
+    <div class="order-item-row">
+      <span>${escapeHtml(name || 'Sản phẩm')} × ${quantity}</span>
+      <span>${formatVND(lineTotal)}</span>
+    </div>`;
+}
+
+function paymentMethodField() {
+  return `
+    <div class="form-row">
+      <label for="paymentMethod">Phương thức thanh toán</label>
+      <select id="paymentMethod" name="paymentMethod">
+        <option value="cod">Thanh toán khi nhận hàng (COD)</option>
+        <option value="bank_transfer">Chuyển khoản ngân hàng</option>
+        <option value="e_wallet">Ví điện tử</option>
+      </select>
+    </div>`;
+}
+
+function promoCodeField() {
+  return `
+    <div class="form-row mt-2.5">
+      <label for="promoCode">Mã khuyến mại</label>
+      <div class="flex gap-2">
+        <input id="promoCode" placeholder="Nhập mã (nếu có)" class="flex-1">
+        <button type="button" class="btn btn-outline btn-sm" id="apply-promo-btn">Áp dụng</button>
+      </div>
+      <div class="form-error" id="promo-error"></div>
+    </div>`;
+}
 
 function renderSummary() {
   const total = subtotal - (appliedPromo?.discountAmount || 0) + shippingFee;
@@ -178,6 +262,41 @@ async function submitOrder(e) {
     refreshCartCount();
     showToast(`Đặt hàng thành công — mã đơn #${order.id}`);
     window.location.href = '/orders.html';
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.add('show');
+    submitBtn.disabled = false;
+  }
+}
+
+async function submitGuestOrder(e, items) {
+  e.preventDefault();
+  const errorEl = document.getElementById('form-error');
+  errorEl.classList.remove('show');
+
+  const fd = new FormData(e.target);
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  const phone = fd.get('phone');
+
+  try {
+    const { data: order } = await apiFetch('/orders/guest-checkout', {
+      method: 'POST',
+      body: JSON.stringify({
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        guestName: fd.get('recipientName'),
+        guestPhone: phone,
+        guestAddress: fd.get('address'),
+        guestEmail: fd.get('email') || undefined,
+        paymentMethod: fd.get('paymentMethod'),
+        note: fd.get('note') || undefined,
+        promoCode: appliedPromo?.code || undefined,
+      }),
+    });
+    clearGuestCart();
+    refreshCartCount();
+    showToast(`Đặt hàng thành công — mã đơn #${order.id}`);
+    window.location.href = `/order-lookup.html?code=${order.id}&phone=${encodeURIComponent(phone)}`;
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.classList.add('show');

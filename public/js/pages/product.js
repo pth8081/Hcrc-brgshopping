@@ -1,4 +1,4 @@
-import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast, pushRecentlyViewed } from '../api.js';
+import { apiFetch, formatVND, applyThumbGradients, initials, getToken, showToast, pushRecentlyViewed, addToGuestCart } from '../api.js';
 import { renderLayout, refreshCartCount, escapeHtml } from '../layout.js';
 import { renderProductGrid } from '../productGrid.js';
 
@@ -60,7 +60,7 @@ async function loadProduct() {
 
     applyThumbGradients(detailEl);
     wireQty();
-    document.getElementById('add-btn')?.addEventListener('click', () => addToCart(p.id));
+    document.getElementById('add-btn')?.addEventListener('click', () => addToCart(p));
 
     pushRecentlyViewed(p);
     apiFetch(`/products/${p.id}/view`, { method: 'POST' }).catch(() => {});
@@ -111,14 +111,18 @@ function wireQty() {
   });
 }
 
-async function addToCart(productId) {
+async function addToCart(product) {
+  const quantity = Number(document.getElementById('qty-value').textContent);
+
   if (!getToken()) {
-    window.location.href = `/login.html?next=${encodeURIComponent(location.pathname + location.search)}`;
+    addToGuestCart(product, quantity);
+    showToast('Đã thêm vào giỏ hàng');
+    refreshCartCount();
     return;
   }
-  const quantity = Number(document.getElementById('qty-value').textContent);
+
   try {
-    await apiFetch('/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity }) });
+    await apiFetch('/cart/items', { method: 'POST', body: JSON.stringify({ productId: product.id, quantity }) });
     showToast('Đã thêm vào giỏ hàng');
     refreshCartCount();
   } catch (err) {

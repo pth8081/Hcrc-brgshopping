@@ -102,6 +102,12 @@ riêng của từng cách deploy sẽ nói rõ ở dưới):
 | `MSSQL_ENCRYPT` | Đặt `true` nếu MSSQL có chứng chỉ TLS thật (nên bật nếu MSSQL không nằm trên `localhost`) |
 | `ADMIN_PASSWORD` | **Để trống, đừng điền gì.** Bước tạo tài khoản admin dưới đây sẽ tự sinh mật khẩu ngẫu nhiên và chỉ in ra một lần. |
 
+Ngoài ra `.env.example` còn có vài khối biến **tuỳ chọn**, để trống cũng chạy
+bình thường: `GOOGLE_CLIENT_ID`/`FACEBOOK_APP_ID` (bật nút đăng nhập Google/
+Facebook), và `ZALO_OA_URL`/`MESSENGER_URL` (bật thêm 2 kênh trong widget
+chat, ngoài chat trên web mặc định luôn bật sẵn). Điền sau khi có tài khoản
+Google/Facebook Developer hoặc Zalo OA thật cũng được, không cần làm ngay.
+
 Chạy tạo bảng và tài khoản admin:
 
 ```bash

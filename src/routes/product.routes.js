@@ -5,6 +5,7 @@ const { requireAuth, requireAdmin, optionalAuth } = require('../middlewares/auth
 
 router.get('/', optionalAuth, productController.list);
 router.get('/best-sellers', productController.bestSellers);
+router.get('/by-ids', productController.byIds);
 router.post('/:id/view', optionalAuth, productController.recordView);
 router.get('/:id/also-bought', productController.alsoBought);
 router.get('/:slug', productController.getBySlug);

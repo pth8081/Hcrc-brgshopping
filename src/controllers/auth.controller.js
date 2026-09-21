@@ -46,4 +46,13 @@ const me = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user });
 });
 
-module.exports = { register, login, me };
+// Google/Facebook login lands here after passport resolves req.user (see
+// src/config/passport.js). There's no fetch/XHR to hand a JWT back to on a
+// full-page redirect flow, so it's passed as a query param to a tiny static
+// page (oauth-callback.html) that stores it exactly like a normal login.
+const oauthCallback = (req, res) => {
+  const token = signToken({ id: req.user.id, role: req.user.role });
+  res.redirect(`/oauth-callback.html?token=${encodeURIComponent(token)}`);
+};
+
+module.exports = { register, login, me, oauthCallback };

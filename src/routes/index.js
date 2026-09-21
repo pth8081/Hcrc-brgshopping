@@ -10,5 +10,7 @@ router.use('/news', require('./news.routes'));
 router.use('/promotions', require('./promotion.routes'));
 router.use('/recommendations', require('./recommendation.routes'));
 router.use('/search', require('./search.routes'));
+router.use('/config', require('./config.routes'));
+router.use('/chat', require('./chat.routes'));
 
 module.exports = router;

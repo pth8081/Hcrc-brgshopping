@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/order.controller');
 const { requireAuth, requireAdmin } = require('../middlewares/auth.middleware');
+const { guestOrderLimiter } = require('../middlewares/rateLimit.middleware');
+
+// Public — no account needed, so these must come before the requireAuth gate below.
+router.post('/guest-checkout', guestOrderLimiter, orderController.guestCheckout);
+router.get('/lookup', guestOrderLimiter, orderController.lookupGuestOrder);
 
 router.use(requireAuth);
 router.post('/checkout', orderController.checkout);

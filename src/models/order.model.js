@@ -7,9 +7,14 @@ const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'];
 
 const Order = sequelize.define('Order', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  userId: { type: DataTypes.INTEGER, allowNull: false },
+  // Null for a guest order (see guestName/guestPhone/guestEmail/guestAddress below).
+  userId: { type: DataTypes.INTEGER, allowNull: true },
   addressId: { type: DataTypes.INTEGER, allowNull: true },
   promotionId: { type: DataTypes.INTEGER, allowNull: true },
+  guestName: { type: DataTypes.STRING(150), allowNull: true },
+  guestPhone: { type: DataTypes.STRING(20), allowNull: true },
+  guestEmail: { type: DataTypes.STRING(150), allowNull: true },
+  guestAddress: { type: DataTypes.STRING(500), allowNull: true },
   status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'pending', validate: { isIn: [ORDER_STATUSES] } },
   paymentMethod: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'cod', validate: { isIn: [PAYMENT_METHODS] } },
   paymentStatus: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'unpaid', validate: { isIn: [PAYMENT_STATUSES] } },

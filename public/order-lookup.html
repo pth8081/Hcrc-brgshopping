@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tra cứu đơn hàng — BRG Shopping</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <main>
+    <div class="wrap">
+      <h1 class="text-[22px] mb-1.5">Tra cứu đơn hàng</h1>
+      <p class="text-muted mb-5">Dành cho đơn đặt hàng không cần tài khoản — nhập mã đơn và số điện thoại đã dùng khi đặt hàng.</p>
+
+      <div class="panel auth-card">
+        <div class="form-error" id="form-error"></div>
+        <form id="lookup-form">
+          <div class="form-row">
+            <label for="code">Mã đơn hàng</label>
+            <input id="code" name="code" required inputmode="numeric" placeholder="VD: 123">
+          </div>
+          <div class="form-row">
+            <label for="phone">Số điện thoại</label>
+            <input id="phone" name="phone" required placeholder="09xxxxxxxx">
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Tra cứu</button>
+        </form>
+      </div>
+
+      <div id="lookup-result" class="mt-5"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script type="module" src="/js/pages/orderLookup.js"></script>
+</body>
+</html>

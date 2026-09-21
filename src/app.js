@@ -4,6 +4,8 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
+const session = require('express-session');
+const { passport } = require('./config/passport');
 
 const routes = require('./routes');
 const { notFoundHandler, errorHandler } = require('./middlewares/error.middleware');
@@ -49,6 +51,17 @@ app.use(
 app.use(cors());
 app.use(express.json());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// Session is only used for the brief Google/Facebook OAuth handshake (the
+// `state` CSRF check in between the redirect to the provider and its
+// callback) — never for regular API auth, which stays JWT/Bearer throughout.
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'brgshopping-oauth-handshake-dev-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'lax', maxAge: 5 * 60 * 1000 },
+}));
+app.use(passport.initialize());
 
 app.get('/health', (req, res) => res.json({ success: true, status: 'ok' }));
 app.use('/api', routes);

@@ -83,6 +83,109 @@ const checkout = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: order });
 });
 
+// Same idea as checkout() above, but for a visitor with no account: the
+// cart lives in the browser (localStorage, see getGuestCart() in
+// public/js/api.js) instead of a server-side Cart, so the items come
+// straight from the request body — and every price/stock check is redone
+// here from the database, never trusted from the client.
+const guestCheckout = asyncHandler(async (req, res) => {
+  const { items, guestName, guestPhone, guestAddress, guestEmail, paymentMethod = 'cod', note, promoCode } = req.body;
+  if (!guestName || !guestPhone || !guestAddress) {
+    throw new ApiError(400, 'guestName, guestPhone and guestAddress are required');
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ApiError(400, 'items is required');
+  }
+
+  const productIds = items.map((i) => Number(i.productId)).filter(Boolean);
+  const products = await Product.findAll({ where: { id: productIds, isActive: true } });
+  const productById = new Map(products.map((p) => [p.id, p]));
+
+  const lineItems = items.map((i) => {
+    const product = productById.get(Number(i.productId));
+    const quantity = Number(i.quantity) || 0;
+    if (!product) throw new ApiError(404, `Sản phẩm #${i.productId} không còn tồn tại`);
+    if (quantity < 1) throw new ApiError(400, 'quantity must be at least 1');
+    if (product.stockQuantity < quantity) throw new ApiError(400, `${product.name} chỉ còn ${product.stockQuantity} sản phẩm`);
+    const price = Number(product.salePrice || product.price);
+    return { product, quantity, price };
+  });
+
+  const order = await sequelize.transaction(async (t) => {
+    const subtotal = lineItems.reduce((sum, li) => sum + li.price * li.quantity, 0);
+
+    let promotion = null;
+    let discountAmount = 0;
+    if (promoCode) {
+      const now = new Date();
+      promotion = await Promotion.findOne({
+        where: { code: promoCode.trim().toUpperCase(), isActive: true, startDate: { [Op.lte]: now }, endDate: { [Op.gte]: now } },
+        transaction: t,
+      });
+      if (!promotion) throw new ApiError(404, 'Mã khuyến mại không hợp lệ hoặc đã hết hạn');
+      if (subtotal < Number(promotion.minOrderAmount)) {
+        throw new ApiError(400, `Đơn hàng tối thiểu ${Number(promotion.minOrderAmount).toLocaleString('vi-VN')}đ để áp dụng mã này`);
+      }
+      discountAmount = computeDiscount(promotion, subtotal);
+    }
+
+    const newOrder = await Order.create({
+      userId: null,
+      guestName,
+      guestPhone,
+      guestEmail: guestEmail || null,
+      guestAddress,
+      promotionId: promotion ? promotion.id : null,
+      paymentMethod,
+      note: note || null,
+      totalAmount: subtotal - discountAmount,
+      discountAmount,
+    }, { transaction: t });
+
+    for (const li of lineItems) {
+      await OrderItem.create({
+        orderId: newOrder.id,
+        productId: li.product.id,
+        productName: li.product.name,
+        price: li.price,
+        quantity: li.quantity,
+        subtotal: li.price * li.quantity,
+      }, { transaction: t });
+
+      await Product.decrement('stockQuantity', { by: li.quantity, where: { id: li.product.id }, transaction: t });
+    }
+
+    await OrderStatusHistory.create({
+      orderId: newOrder.id,
+      status: newOrder.status,
+      paymentStatus: newOrder.paymentStatus,
+      note: 'Đơn hàng được tạo (khách vãng lai)',
+    }, { transaction: t });
+
+    return newOrder;
+  });
+
+  res.status(201).json({ success: true, data: order });
+});
+
+// Public order tracking for a guest who has no account to view /orders.html
+// with. Deliberately scoped to guest orders only (userId IS NULL) — an
+// account order's status is only visible by logging in, so this can't be
+// used to peek at someone else's order just by knowing its id and phone.
+const lookupGuestOrder = asyncHandler(async (req, res) => {
+  const { code, phone } = req.query;
+  const id = Number(code);
+  if (!id || !phone) throw new ApiError(400, 'code and phone are required');
+
+  const order = await Order.findOne({
+    where: { id, userId: null, guestPhone: String(phone).trim() },
+    include: [{ model: OrderItem, as: 'items' }],
+  });
+  if (!order) throw new ApiError(404, 'Không tìm thấy đơn hàng với mã và số điện thoại này');
+
+  res.json({ success: true, data: order });
+});
+
 const myOrders = asyncHandler(async (req, res) => {
   const orders = await Order.findAll({
     where: { userId: req.user.id },
@@ -209,5 +312,5 @@ const myNotifications = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  checkout, myOrders, getById, listAll, updateStatus, updatePaymentStatus, cancelMyOrder, myNotifications,
+  checkout, guestCheckout, lookupGuestOrder, myOrders, getById, listAll, updateStatus, updatePaymentStatus, cancelMyOrder, myNotifications,
 };

@@ -12,4 +12,28 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' },
 });
 
-module.exports = { authLimiter };
+// Guest checkout and the order-lookup endpoint are also unauthenticated
+// writes/reads (lookup in particular could otherwise be used to brute-force
+// guess a phone number against an order id) — same idea as authLimiter,
+// just a bit more generous since a real guest legitimately hits both once
+// per order rather than repeatedly.
+const guestOrderLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' },
+});
+
+// Chat is naturally chattier than a login form — a real conversation can
+// easily be more than 10 messages in 15 minutes — so this only exists to
+// stop scripted spam, not to get in a real customer's way.
+const chatLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' },
+});
+
+module.exports = { authLimiter, guestOrderLimiter, chatLimiter };

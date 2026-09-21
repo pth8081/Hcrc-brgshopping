@@ -108,10 +108,12 @@ All endpoints are under `/api`.
 | POST   | `/auth/register`            | -           | Create an account |
 | POST   | `/auth/login`                | -           | Get a JWT |
 | GET    | `/auth/me`                   | user        | Current user profile |
+| GET    | `/auth/google`, `/auth/facebook`  | -      | Start social login (browser redirect); no-op redirect back to login if not configured |
 | GET    | `/categories`                | -           | List active categories |
 | GET    | `/categories/:slug`           | -           | Category detail |
 | POST/PUT/DELETE `/categories`   | admin      | Manage categories |
-| GET    | `/products`                   | -           | List products (filters: `categoryId`, `search`, `page`, `limit`) |
+| GET    | `/products`                   | -           | List products (filters: `categoryId`, `search`, `sort`, `onSale`, `maxPrice`, `page`, `limit`) |
+| GET    | `/products/by-ids`             | -           | Batch lookup by id (used to hydrate the guest cart) |
 | GET    | `/products/:slug`              | -           | Product detail |
 | POST/PUT/DELETE `/products`     | admin      | Manage products |
 | GET    | `/cart`                       | user        | Current user's cart |
@@ -119,16 +121,61 @@ All endpoints are under `/api`.
 | PUT/DELETE `/cart/items/:itemId` | user      | Update/remove cart item |
 | DELETE | `/cart`                       | user        | Clear cart |
 | POST   | `/orders/checkout`             | user        | Create order from current cart |
+| POST   | `/orders/guest-checkout`       | -           | Create order with no account (items in the request body, not a server cart) |
+| GET    | `/orders/lookup`               | -           | Track a guest order by `code` (order id) + `phone` |
 | GET    | `/orders/my`                   | user        | Current user's orders |
 | GET    | `/orders/:id`                  | user/admin  | Order detail (owner or admin) |
 | GET    | `/orders`                      | admin       | All orders |
 | PUT    | `/orders/:id/status`            | admin       | Update order status |
+| POST   | `/chat/start`                  | user/guest  | Start or resume a support conversation |
+| POST/GET `/chat/:id/messages`   | user/guest  | Send / poll (`?after=<id>`) messages in a conversation |
+| GET/POST `/chat/admin/conversations[/…]` | admin | Inbox: list conversations, read/reply to a thread |
+| GET    | `/config/public`               | -           | Which optional integrations are configured (social login, Zalo/Messenger links) |
 
 Send `Authorization: Bearer <token>` for user/admin routes.
 
 ### 5. Migrating data from the live Odoo database
 
 See [`docs/MIGRATION.md`](docs/MIGRATION.md).
+
+## Social login, guest checkout & live chat
+
+- **Google/Facebook login**: a full-page redirect flow (`passport`), not
+  fetch/XHR — the provider's consent screen needs a real browser navigation.
+  Both are **optional**: set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and/or
+  `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` in `.env` (see `.env.example` for
+  where to get them and what callback URL to register), or leave them unset
+  to hide that button entirely — the rest of the app works the same either
+  way. A social login either links to an existing account with the same
+  email or creates a new one; `users.passwordHash` is nullable for a
+  social-only account that never set a password.
+- **Guest checkout ("đặt hàng không cần tài khoản")**: a visitor with no
+  account gets a client-side cart (`localStorage`, see `getGuestCart()` in
+  `public/js/api.js`) instead of the server `Cart`/`CartItem` tables, and
+  `POST /api/orders/guest-checkout` creates an `Order` with `userId: null`
+  plus `guestName`/`guestPhone`/`guestEmail`/`guestAddress` directly on the
+  order (no `Address` row). Afterwards they track their order at
+  `/order-lookup.html` using **order id + phone number**, with no login —
+  deliberately scoped to guest orders only (`userId IS NULL`), so this can
+  never be used to view an account holder's order without logging in. If a
+  guest with items in their cart decides to log in or register instead,
+  those items are folded into their account cart automatically
+  (`mergeGuestCartIntoAccount()`).
+- **Live chat**: a floating launcher (bottom-right, on every page) offers a
+  channel picker — an in-page web chat, plus Zalo/Messenger if configured.
+  The web chat is a small polling-based thread (`ChatConversation`/
+  `ChatMessage` tables; the browser polls `GET /api/chat/:id/messages?after=`
+  every few seconds) rather than WebSockets, deliberately — it needs no
+  extra reverse-proxy configuration (a websocket needs `Upgrade`/`Connection`
+  headers forwarded by nginx) and no new runtime dependency beyond Express
+  itself. A guest is identified by a random token generated once and kept in
+  `localStorage` (`getGuestChatToken()`); every message/read is checked
+  against that token or the JWT's user id server-side (see
+  `findOwnedConversation()` in `src/controllers/chat.controller.js`) so one
+  visitor can't read another's conversation. Admins reply from a "Chat hỗ
+  trợ" tab in `/admin.html`. Zalo/Messenger are just outbound links — set
+  `ZALO_OA_URL`/`MESSENGER_URL` in `.env` to your real Zalo OA / Facebook
+  Page to show that option in the picker, or leave unset to hide it.
 
 ## Deployment
 

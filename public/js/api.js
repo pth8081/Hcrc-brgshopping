@@ -19,6 +19,13 @@ export function setSession(token, user) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+// Stores just the token, before the user profile is known yet — used by the
+// OAuth callback page, which gets a token from the redirect and then calls
+// /auth/me (itself needing the token already set) to fetch the profile.
+export function setTokenOnly(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -166,3 +173,103 @@ export const PAYMENT_METHOD_LABEL = {
   bank_transfer: 'Chuyển khoản ngân hàng',
   e_wallet: 'Ví điện tử',
 };
+
+const GUEST_CART_KEY = 'brg_guest_cart';
+
+// Client-side cart for a visitor with no account, so "add to cart" doesn't
+// force a login. Mirrors the server cart's shape (productId + quantity, plus
+// a price snapshot from when the item was added) so cart.js/checkout.js can
+// render either source with the same code.
+export function getGuestCart() {
+  try {
+    const list = JSON.parse(localStorage.getItem(GUEST_CART_KEY));
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveGuestCart(items) {
+  try {
+    localStorage.setItem(GUEST_CART_KEY, JSON.stringify(items));
+  } catch {
+    // localStorage unavailable (private browsing, quota) — guest cart just won't persist.
+  }
+}
+
+export function addToGuestCart(product, quantity = 1) {
+  const items = getGuestCart();
+  const existing = items.find((i) => i.productId === product.id);
+  if (existing) {
+    existing.quantity += quantity;
+  } else {
+    items.push({
+      productId: product.id,
+      name: product.name,
+      slug: product.slug,
+      price: product.price,
+      salePrice: product.salePrice,
+      quantity,
+    });
+  }
+  saveGuestCart(items);
+  return items;
+}
+
+export function updateGuestCartItem(productId, quantity) {
+  const items = getGuestCart().map((i) => (i.productId === productId ? { ...i, quantity } : i));
+  saveGuestCart(items);
+  return items;
+}
+
+export function removeFromGuestCart(productId) {
+  const items = getGuestCart().filter((i) => i.productId !== productId);
+  saveGuestCart(items);
+  return items;
+}
+
+export function clearGuestCart() {
+  saveGuestCart([]);
+}
+
+export function guestCartCount() {
+  return getGuestCart().reduce((sum, i) => sum + i.quantity, 0);
+}
+
+// Called right after establishing a real session (email/password login,
+// register, or social login) — folds whatever was in the anonymous cart into
+// the account's server-side cart so a visitor never loses items just because
+// they decided to log in partway through shopping.
+export async function mergeGuestCartIntoAccount() {
+  const items = getGuestCart();
+  if (items.length === 0) return;
+  for (const item of items) {
+    try {
+      await apiFetch('/cart/items', {
+        method: 'POST',
+        body: JSON.stringify({ productId: item.productId, quantity: item.quantity }),
+      });
+    } catch {
+      // A single stale/removed product shouldn't block merging the rest of the cart.
+    }
+  }
+  clearGuestCart();
+}
+
+const GUEST_CHAT_TOKEN_KEY = 'brg_guest_chat_token';
+
+// Identifies an anonymous visitor's chat conversation across page loads and
+// reloads, without requiring an account — functions like a lightweight,
+// chat-only session credential (see src/controllers/chat.controller.js).
+export function getGuestChatToken() {
+  let token = localStorage.getItem(GUEST_CHAT_TOKEN_KEY);
+  if (!token) {
+    token = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    try {
+      localStorage.setItem(GUEST_CHAT_TOKEN_KEY, token);
+    } catch {
+      // localStorage unavailable — chat still works, just won't resume after a reload.
+    }
+  }
+  return token;
+}

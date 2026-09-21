@@ -23,15 +23,26 @@ if (!user) {
   wireForms();
 }
 
+const TAB_NAMES = ['categories', 'products', 'orders', 'news', 'promotions', 'chat'];
+
 function initTabs() {
   const buttons = document.querySelectorAll('.tabs button');
   buttons.forEach((btn) => {
     btn.addEventListener('click', () => {
       buttons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['categories', 'products', 'orders', 'news', 'promotions'].forEach((name) => {
+      TAB_NAMES.forEach((name) => {
         document.getElementById(`tab-${name}`).hidden = name !== btn.dataset.tab;
       });
+
+      stopChatPolling();
+      if (btn.dataset.tab === 'chat') {
+        loadChatConversations();
+        chatPollInterval = setInterval(() => {
+          loadChatConversations(true);
+          if (selectedConversationId) refreshThread();
+        }, 4000);
+      }
     });
   });
 }
@@ -140,7 +151,7 @@ async function loadOrders() {
                 (o) => `
               <tr>
                 <td>#${o.id}</td>
-                <td>${escapeHtml(o.User?.fullName || '—')}${o.User?.phone ? `<br><span class="text-faint text-xs">${escapeHtml(o.User.phone)}</span>` : ''}</td>
+                <td>${escapeHtml(o.User?.fullName || o.guestName || '—')}${o.User?.phone || o.guestPhone ? `<br><span class="text-faint text-xs">${escapeHtml(o.User?.phone || o.guestPhone)}</span>` : ''}${!o.User ? '<br><span class="pill pill-pending text-[10px] mt-1 inline-block">Khách vãng lai</span>' : ''}</td>
                 <td>${formatDate(o.createdAt)}</td>
                 <td>${formatVND(o.totalAmount)}</td>
                 <td>
@@ -365,4 +376,100 @@ function wireForms() {
       promoError.classList.add('show');
     }
   });
+}
+
+// --- Chat inbox ---
+let chatPollInterval = null;
+let selectedConversationId = null;
+let lastThreadMessageId = 0;
+
+function stopChatPolling() {
+  clearInterval(chatPollInterval);
+  chatPollInterval = null;
+}
+
+async function loadChatConversations(silent = false) {
+  const list = document.getElementById('chat-conv-list');
+  try {
+    const { data } = await apiFetch('/chat/admin/conversations');
+
+    list.innerHTML = data.length
+      ? data
+          .map((c) => {
+            const lastMessage = c.messages?.[0];
+            const awaitingReply = lastMessage?.senderType === 'customer';
+            return `
+          <button type="button" class="chat-conv-row${c.id === selectedConversationId ? ' active' : ''}" data-conv="${c.id}">
+            <div class="name">${awaitingReply ? '<span class="awaiting"></span>' : ''}${escapeHtml(c.User?.fullName || c.guestName || 'Khách')}</div>
+            <div class="preview">${escapeHtml(lastMessage?.body || 'Chưa có tin nhắn')}</div>
+            <div class="time">${c.lastMessageAt ? formatDate(c.lastMessageAt) : formatDate(c.createdAt)}</div>
+          </button>`;
+          })
+          .join('')
+      : '<p class="text-muted p-3">Chưa có cuộc trò chuyện nào.</p>';
+
+    list.querySelectorAll('[data-conv]').forEach((btn) => {
+      btn.addEventListener('click', () => openConversation(Number(btn.dataset.conv)));
+    });
+  } catch (err) {
+    if (!silent) list.innerHTML = `<p class="text-danger p-3">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function openConversation(id) {
+  selectedConversationId = id;
+  lastThreadMessageId = 0;
+  document.querySelectorAll('.chat-conv-row').forEach((row) => {
+    row.classList.toggle('active', Number(row.dataset.conv) === id);
+  });
+
+  const thread = document.getElementById('chat-thread');
+  thread.innerHTML = `
+    <div class="chat-thread-body" id="chat-thread-body"></div>
+    <form class="chat-thread-composer" id="chat-thread-composer">
+      <input type="text" id="chat-thread-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+      <button type="submit" class="btn btn-primary btn-sm">Gửi</button>
+    </form>`;
+
+  document.getElementById('chat-thread-composer').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('chat-thread-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    try {
+      await apiFetch(`/chat/admin/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ body: text }) });
+      await refreshThread();
+      loadChatConversations(true);
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  });
+
+  await refreshThread();
+}
+
+async function refreshThread() {
+  if (!selectedConversationId) return;
+  const body = document.getElementById('chat-thread-body');
+  if (!body) return;
+
+  try {
+    const { data } = await apiFetch(`/chat/admin/conversations/${selectedConversationId}/messages`);
+    const newMessages = data.messages.filter((m) => m.id > lastThreadMessageId);
+    if (lastThreadMessageId === 0) {
+      body.innerHTML = data.messages
+        .map((m) => `<div class="chat-bubble ${m.senderType === 'admin' ? 'out' : 'in'}">${escapeHtml(m.body)}</div>`)
+        .join('') || '<p class="text-muted">Chưa có tin nhắn.</p>';
+    } else if (newMessages.length > 0) {
+      body.insertAdjacentHTML(
+        'beforeend',
+        newMessages.map((m) => `<div class="chat-bubble ${m.senderType === 'admin' ? 'out' : 'in'}">${escapeHtml(m.body)}</div>`).join('')
+      );
+    }
+    if (data.messages.length > 0) lastThreadMessageId = Math.max(...data.messages.map((m) => m.id));
+    body.scrollTop = body.scrollHeight;
+  } catch (err) {
+    showToast(err.message, true);
+  }
 }
