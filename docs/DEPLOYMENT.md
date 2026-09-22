@@ -224,6 +224,80 @@ sudo crontab -e
 (Dòng cron này tự tắt app trong vài giây để nhường cổng 80 cho certbot xác
 minh domain, xong rồi bật lại app.)
 
+**B2 — Đã có sẵn chứng chỉ .pem (ví dụ đang dùng cho HAProxy), không cần xin
+mới.** Dùng cách này thay vì certbot ở trên nếu bạn đã có file `.pem`.
+
+App (Node's `https` module) cần **2 file riêng** — một chứa chứng chỉ, một
+chứa khoá riêng (private key) — trong khi file `.pem` dùng cho HAProxy
+thường là **1 file gộp chung cả chứng chỉ lẫn khoá riêng** (đúng định dạng
+HAProxy yêu cầu ở `bind ... ssl crt file.pem`). Vì vậy cần tách file đó ra
+trước khi dùng cho app.
+
+1. Copy file `.pem` lên VPS (nếu chưa có sẵn ở đó), ví dụ vào
+   `/home/deploy/ssl/haproxy-combined.pem`:
+   ```bash
+   scp haproxy-combined.pem deploy@vps-cua-ban:/home/deploy/ssl/
+   ```
+
+2. Kiểm tra xem file có đúng là gộp chung cert + key không:
+   ```bash
+   grep -c "BEGIN CERTIFICATE" /home/deploy/ssl/haproxy-combined.pem
+   grep -cE "BEGIN (RSA |EC )?PRIVATE KEY" /home/deploy/ssl/haproxy-combined.pem
+   ```
+   Cả hai đều ra số ≥ 1 nghĩa là file có gộp chung — làm tiếp bước 3. Nếu
+   dòng thứ hai ra `0`, tức là khoá riêng nằm ở một file `.key` khác (bạn
+   dùng thẳng file đó cho `TLS_KEY_PATH` ở bước 4, bỏ qua bước 3).
+
+3. Tách thành 2 file riêng — `fullchain.pem` (chứng chỉ, giữ nguyên thứ tự
+   nếu có kèm chứng chỉ trung gian) và `privkey.pem` (khoá riêng):
+   ```bash
+   cd /home/deploy/ssl
+   awk '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/' haproxy-combined.pem > fullchain.pem
+   awk '/-----BEGIN( RSA| EC)? PRIVATE KEY-----/,/-----END( RSA| EC)? PRIVATE KEY-----/' haproxy-combined.pem > privkey.pem
+   chmod 600 privkey.pem
+   ```
+   Nếu khoá riêng của bạn có mật khẩu (passphrase) — kiểm tra bằng
+   `openssl rsa -in privkey.pem -check` và bị hỏi passphrase — cần gỡ mật
+   khẩu trước, vì Node không hỗ trợ nhập passphrase tương tác lúc khởi
+   động:
+   ```bash
+   openssl rsa -in privkey.pem -out privkey.pem
+   ```
+
+4. Sửa `.env`:
+   ```
+   PORT=443
+   TLS_KEY_PATH=/home/deploy/ssl/privkey.pem
+   TLS_CERT_PATH=/home/deploy/ssl/fullchain.pem
+   HTTP_REDIRECT_PORT=80
+   ```
+   (Nếu app đang chạy ở cổng khác — ví dụ vẫn để HAProxy đứng trước chuyển
+   tiếp vào một cổng nội bộ như `8443` — đặt `PORT` đúng bằng cổng đó thay
+   vì `443`, và bỏ qua bước cấp quyền cổng thấp bên dưới.)
+
+5. Nếu chạy ở cổng 443/80 (dưới 1024), nhớ đã cấp quyền cho Node như ở đầu
+   mục "Cách 1" (`sudo setcap 'cap_net_bind_service=+ep' ...`). Rồi khởi
+   động lại app:
+   ```bash
+   pm2 restart brgshopping || pm2 start src/server.js --name brgshopping
+   pm2 save
+   ```
+
+6. Kiểm tra:
+   ```bash
+   curl -Ik https://ten-mien-cua-ban.com/health
+   ```
+   Phải trả về `200`. Nếu lỗi chứng chỉ (browser cảnh báo "not trusted"),
+   thường là do `fullchain.pem` thiếu chứng chỉ trung gian (intermediate)
+   — kiểm tra lại file `.pem` gốc đã có đủ toàn bộ chuỗi chứng chỉ như khi
+   dùng cho HAProxy chưa.
+
+**Gia hạn:** app chỉ đọc file chứng chỉ một lần lúc khởi động (giống mục B
+ở trên) — mỗi khi chứng chỉ này được cấp mới/gia hạn (ở nơi bạn vẫn đang
+quản lý cho HAProxy), lặp lại bước 3 (tách lại 2 file) rồi `pm2 restart
+brgshopping` để app dùng bản mới. Việc gia hạn tự động (nếu có) vẫn thuộc
+về quy trình bạn đang dùng cho HAProxy — không tự động chạy cho app này.
+
 ### 1.3. Mở firewall
 
 ```bash
