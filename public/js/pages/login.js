@@ -1,11 +1,13 @@
 import { apiFetch, setSession, mergeGuestCartIntoAccount, showToast } from '../api.js';
 import { renderLayout } from '../layout.js';
+import { initCaptcha } from '../captcha.js';
 
 renderLayout({});
 
 const form = document.getElementById('login-form');
 const errorEl = document.getElementById('form-error');
 const next = new URLSearchParams(location.search).get('next') || '/index.html';
+const captcha = initCaptcha('captcha-img', 'captcha-refresh');
 
 if (new URLSearchParams(location.search).get('oauth') === 'not_configured') {
   showToast('Đăng nhập Google/Facebook chưa được cấu hình trên server này', true);
@@ -36,7 +38,12 @@ form.addEventListener('submit', async (e) => {
   try {
     const { data } = await apiFetch('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
+      body: JSON.stringify({
+        email: fd.get('email'),
+        password: fd.get('password'),
+        captchaId: captcha.getId(),
+        captchaText: fd.get('captchaText'),
+      }),
     });
     setSession(data.token, data.user);
     await mergeGuestCartIntoAccount();
@@ -44,5 +51,7 @@ form.addEventListener('submit', async (e) => {
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.classList.add('show');
+    form.querySelector('#captchaText').value = '';
+    captcha.refresh();
   }
 });

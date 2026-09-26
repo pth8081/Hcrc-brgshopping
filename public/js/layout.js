@@ -70,6 +70,7 @@ export async function renderLayout({ activeCategoryId } = {}) {
         ${
           user
             ? `<div class="row"><a href="/orders.html">Đơn hàng của tôi</a></div>
+               <div class="row"><a href="/change-password.html">Đổi mật khẩu</a></div>
                ${user.role === 'admin' ? '<div class="row"><a href="/admin.html">Trang quản trị</a></div>' : ''}
                <div class="row"><a href="#" id="logout-link">Đăng xuất</a></div>`
             : `<div class="row"><a href="/login.html">Đăng nhập</a><a href="/register.html">Đăng ký</a></div>`
@@ -98,7 +99,7 @@ export async function renderLayout({ activeCategoryId } = {}) {
       <span class="pay-badge">Ví điện tử</span>
     </div>
     <div class="footer-copyright">
-      <strong>BRG Shopping</strong> — Bản demo giao diện, xây dựng trên Node.js + Express + MSSQL.
+      <strong>BRG Shopping</strong> — © ${new Date().getFullYear()}. Đã đăng ký bản quyền.
     </div>
   `;
 

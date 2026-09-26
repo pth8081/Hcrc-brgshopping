@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { requireAuth } = require('../middlewares/auth.middleware');
-const { authLimiter } = require('../middlewares/rateLimit.middleware');
+const { authLimiter, captchaLimiter } = require('../middlewares/rateLimit.middleware');
 const { passport, GOOGLE_ENABLED, FACEBOOK_ENABLED } = require('../config/passport');
 
+router.get('/captcha', captchaLimiter, authController.getCaptcha);
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
 router.get('/me', requireAuth, authController.me);
+router.put('/change-password', authLimiter, requireAuth, authController.changePassword);
 
 // Social login: a full-page redirect flow (not fetch/XHR), since the
 // provider's consent screen needs a real browser navigation. If the admin

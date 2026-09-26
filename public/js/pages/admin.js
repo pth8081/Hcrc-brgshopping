@@ -20,10 +20,11 @@ if (!user) {
   loadOrders();
   loadNews();
   loadPromotions();
+  loadUsers();
   wireForms();
 }
 
-const TAB_NAMES = ['categories', 'products', 'orders', 'news', 'promotions', 'chat'];
+const TAB_NAMES = ['categories', 'products', 'orders', 'news', 'promotions', 'chat', 'users'];
 
 function initTabs() {
   const buttons = document.querySelectorAll('.tabs button');
@@ -376,6 +377,32 @@ function wireForms() {
       promoError.classList.add('show');
     }
   });
+
+  const userForm = document.getElementById('user-form');
+  const userError = document.getElementById('user-error');
+  userForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    userError.classList.remove('show');
+    const fd = new FormData(userForm);
+    try {
+      await apiFetch('/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: fd.get('fullName'),
+          email: fd.get('email'),
+          phone: fd.get('phone') || undefined,
+          password: fd.get('password'),
+          role: fd.get('role'),
+        }),
+      });
+      userForm.reset();
+      showToast('Đã tạo người dùng');
+      loadUsers();
+    } catch (err) {
+      userError.textContent = err.message;
+      userError.classList.add('show');
+    }
+  });
 }
 
 // --- Chat inbox ---
@@ -471,5 +498,84 @@ async function refreshThread() {
     body.scrollTop = body.scrollHeight;
   } catch (err) {
     showToast(err.message, true);
+  }
+}
+
+// --- Users ---
+const ROLE_LABEL = { customer: 'Khách hàng', admin: 'Quản trị viên' };
+
+async function loadUsers() {
+  const table = document.getElementById('user-table');
+  try {
+    const { data } = await apiFetch('/users');
+
+    table.innerHTML = data.length
+      ? `<table class="admin-table">
+          <thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
+          <tbody>
+            ${data
+              .map((u) => {
+                const isSelf = u.id === user.id;
+                return `
+              <tr>
+                <td>${escapeHtml(u.fullName)}${u.phone ? `<br><span class="text-faint text-xs">${escapeHtml(u.phone)}</span>` : ''}</td>
+                <td>${escapeHtml(u.email)}</td>
+                <td>
+                  <select data-role="${u.id}" ${isSelf ? 'disabled title="Không thể tự đổi vai trò của chính mình"' : ''}>
+                    ${Object.entries(ROLE_LABEL).map(([v, l]) => `<option value="${v}" ${v === u.role ? 'selected' : ''}>${l}</option>`).join('')}
+                  </select>
+                </td>
+                <td>
+                  <button class="btn btn-outline btn-sm" data-toggle-active="${u.id}" data-active="${u.isActive}" ${isSelf ? 'disabled title="Không thể tự khoá tài khoản của chính mình"' : ''}>
+                    ${u.isActive ? 'Đang hoạt động' : 'Đã khoá'}
+                  </button>
+                </td>
+                <td><button class="btn btn-ghost btn-sm" data-reset-pw="${u.id}">Đặt lại mật khẩu</button></td>
+              </tr>`;
+              })
+              .join('')}
+          </tbody>
+        </table>`
+      : '<p class="text-muted">Chưa có người dùng nào.</p>';
+
+    table.querySelectorAll('[data-role]').forEach((select) => {
+      select.addEventListener('change', async () => {
+        try {
+          await apiFetch(`/users/${select.dataset.role}`, { method: 'PUT', body: JSON.stringify({ role: select.value }) });
+          showToast('Đã cập nhật vai trò');
+        } catch (err) {
+          showToast(err.message, true);
+          loadUsers();
+        }
+      });
+    });
+
+    table.querySelectorAll('[data-toggle-active]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const nextActive = btn.dataset.active !== 'true';
+        try {
+          await apiFetch(`/users/${btn.dataset.toggleActive}`, { method: 'PUT', body: JSON.stringify({ isActive: nextActive }) });
+          showToast(nextActive ? 'Đã mở khoá tài khoản' : 'Đã khoá tài khoản');
+          loadUsers();
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      });
+    });
+
+    table.querySelectorAll('[data-reset-pw]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const newPassword = prompt('Nhập mật khẩu mới cho người dùng này (ít nhất 6 ký tự):');
+        if (!newPassword) return;
+        try {
+          await apiFetch(`/users/${btn.dataset.resetPw}/reset-password`, { method: 'PUT', body: JSON.stringify({ newPassword }) });
+          showToast('Đã đặt lại mật khẩu');
+        } catch (err) {
+          showToast(err.message, true);
+        }
+      });
+    });
+  } catch (err) {
+    table.innerHTML = `<p class="text-danger">${escapeHtml(err.message)}</p>`;
   }
 }

@@ -24,6 +24,7 @@
           <button data-tab="news">Tin tức</button>
           <button data-tab="promotions">Khuyến mại</button>
           <button data-tab="chat">Chat hỗ trợ</button>
+          <button data-tab="users">Người dùng</button>
         </div>
 
         <section id="tab-categories">
@@ -186,6 +187,43 @@
             <div class="panel" id="chat-thread">
               <p class="text-muted">Chọn một cuộc trò chuyện để xem.</p>
             </div>
+          </div>
+        </section>
+
+        <section id="tab-users" hidden>
+          <div class="panel mb-[18px]">
+            <h3>Thêm người dùng</h3>
+            <div class="form-error" id="user-error"></div>
+            <form id="user-form" class="form-grid">
+              <div class="form-row">
+                <label for="u-name">Họ và tên</label>
+                <input id="u-name" name="fullName" required>
+              </div>
+              <div class="form-row">
+                <label for="u-email">Email</label>
+                <input id="u-email" name="email" type="email" required>
+              </div>
+              <div class="form-row">
+                <label for="u-phone">Số điện thoại (tuỳ chọn)</label>
+                <input id="u-phone" name="phone">
+              </div>
+              <div class="form-row">
+                <label for="u-password">Mật khẩu</label>
+                <input id="u-password" name="password" type="password" minlength="6" required>
+              </div>
+              <div class="form-row">
+                <label for="u-role">Vai trò</label>
+                <select id="u-role" name="role">
+                  <option value="customer">Khách hàng</option>
+                  <option value="admin">Quản trị viên</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary col-span-full justify-self-start">Tạo người dùng</button>
+            </form>
+          </div>
+          <div class="panel">
+            <h3>Danh sách người dùng</h3>
+            <div id="user-table"></div>
           </div>
         </section>
       </div>

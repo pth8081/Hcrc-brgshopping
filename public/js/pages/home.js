@@ -14,7 +14,7 @@ const isHomepage = !categoryId && !search;
 const hasExplicitFilter = Boolean(sort || onSale || maxPrice);
 
 const HERO_SLIDES = [
-  { tone: 'tone-brand', eyebrow: 'Ưu đãi hôm nay', title: 'Mua sắm dễ dàng, giao nhanh tận nơi', body: 'Toàn bộ sản phẩm dưới đây lấy trực tiếp từ API Node.js chạy trên MSSQL.' },
+  { tone: 'tone-brand', eyebrow: 'Ưu đãi hôm nay', title: 'Mua sắm dễ dàng, giao nhanh tận nơi', body: 'Hàng ngàn sản phẩm chính hãng, cập nhật mỗi ngày.' },
   { tone: 'tone-gold', eyebrow: 'Miễn phí vận chuyển', title: 'Freeship cho đơn hàng từ 500.000₫', body: 'Áp dụng cho tất cả sản phẩm, giao tận nơi trong 1–3 ngày làm việc.' },
   { tone: 'tone-slate', eyebrow: 'Thành viên mới', title: 'Đăng ký tài khoản để lưu đơn hàng', body: 'Theo dõi trạng thái đơn hàng và mua sắm nhanh hơn ở những lần sau.' },
 ];

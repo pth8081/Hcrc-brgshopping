@@ -42,6 +42,14 @@
             <label for="password">Mật khẩu</label>
             <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password">
           </div>
+          <div class="form-row">
+            <label for="captchaText">Nhập mã xác nhận</label>
+            <div class="captcha-row">
+              <div class="captcha-img" id="captcha-img" aria-label="Mã captcha"></div>
+              <button type="button" class="btn btn-outline btn-sm" id="captcha-refresh" title="Đổi mã khác">⟳</button>
+            </div>
+            <input type="text" id="captchaText" name="captchaText" required autocomplete="off" placeholder="Nhập ký tự trong ảnh trên">
+          </div>
           <button class="btn btn-primary btn-block" type="submit">Đăng ký</button>
         </form>
         <p class="form-hint">Đã có tài khoản? <a href="/login.html" class="text-brand-dark font-semibold">Đăng nhập</a></p>

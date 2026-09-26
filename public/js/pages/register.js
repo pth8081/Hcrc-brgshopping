@@ -1,10 +1,12 @@
 import { apiFetch, setSession, mergeGuestCartIntoAccount } from '../api.js';
 import { renderLayout } from '../layout.js';
+import { initCaptcha } from '../captcha.js';
 
 renderLayout({});
 
 const form = document.getElementById('register-form');
 const errorEl = document.getElementById('form-error');
+const captcha = initCaptcha('captcha-img', 'captcha-refresh');
 
 document.getElementById('google-login-btn')?.addEventListener('click', () => {
   window.location.href = '/api/auth/google';
@@ -34,6 +36,8 @@ form.addEventListener('submit', async (e) => {
         email: fd.get('email'),
         phone: fd.get('phone') || undefined,
         password: fd.get('password'),
+        captchaId: captcha.getId(),
+        captchaText: fd.get('captchaText'),
       }),
     });
     setSession(data.token, data.user);
@@ -42,5 +46,7 @@ form.addEventListener('submit', async (e) => {
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.classList.add('show');
+    form.querySelector('#captchaText').value = '';
+    captcha.refresh();
   }
 });

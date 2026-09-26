@@ -36,4 +36,15 @@ const chatLimiter = rateLimit({
   message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' },
 });
 
-module.exports = { authLimiter, guestOrderLimiter, chatLimiter };
+// A user legitimately hits "get a new captcha" a few times while retyping a
+// login/register form — more generous than authLimiter so that isn't what
+// locks them out, while still capping scripted captcha-farming.
+const captchaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' },
+});
+
+module.exports = { authLimiter, guestOrderLimiter, chatLimiter, captchaLimiter };

@@ -28,7 +28,7 @@ async function loadProduct() {
     const inStock = p.stockQuantity > 0;
 
     detailEl.innerHTML = `
-      <div class="panel grid grid-cols-1 sm:grid-cols-[340px_1fr] gap-5 sm:gap-7">
+      <div class="panel product-detail-grid">
         <div class="thumb rounded-xl text-[56px] relative" data-thumb-name="${escapeHtml(p.name)}">
           ${hasSale ? '<span class="sale-badge">Giảm giá</span>' : ''}
           ${escapeHtml(initials(p.name))}
