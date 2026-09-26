@@ -1,13 +1,53 @@
 # Phiên bản
 
-Phiên bản hiện tại: **1.0.0**
+Phiên bản hiện tại: **1.04**
 
-Dự án theo [Semantic Versioning](https://semver.org/lang/vi/) (MAJOR.MINOR.PATCH):
-- **MAJOR** — thay đổi phá vỡ tương thích (đổi schema DB không tương thích ngược, đổi API bắt buộc).
-- **MINOR** — thêm tính năng mới, tương thích ngược.
-- **PATCH** — sửa lỗi, không thêm tính năng.
+## Định dạng đánh số (từ sau 1.0.0)
+
+Định dạng `X.YY` — 1 chữ số trước dấu chấm, 2 chữ số sau (00–99):
+- Mỗi lần phát hành thêm tính năng/sửa lỗi đáng kể, tăng 2 số sau lên 1 đơn vị:
+  `1.00 → 1.01 → 1.02 → ...`
+- Khi 2 số sau vượt quá `99`, tăng số trước lên 1 và quay lại `00`:
+  `1.99 → 2.00`.
+
+Lưu ý: `package.json` vẫn phải dùng SemVer 3 phần chuẩn của npm (không cho phép
+số 0 đứng đầu như `04`), nên phiên bản `1.04` ở đây tương ứng `1.4.0` trong
+`package.json` — cùng một phiên bản, chỉ khác cách viết.
+
+Các phiên bản trước `1.0.0` (`0.1.0` → `1.0.0`) dùng Semantic Versioning
+(MAJOR.MINOR.PATCH) như lúc phát hành, giữ nguyên không đổi số để không làm
+sai lệch lịch sử.
 
 ## Changelog
+
+### 1.04 — Quản lý người dùng, captcha, dọn nội dung, sửa responsive màn hình ngang
+- Trang quản trị: thêm tab "Người dùng" — tạo tài khoản, đổi vai trò, khoá/mở
+  tài khoản, đặt lại mật khẩu hộ người dùng khác. Mọi tài khoản tự đổi được
+  mật khẩu của mình.
+- Captcha đăng nhập/đăng ký sinh ngay trên server (không phụ thuộc dịch vụ
+  bên ngoài như reCAPTCHA), dùng 1 lần, hết hạn sau 5 phút.
+- Bỏ nội dung "bản demo"/nhắc công nghệ Node.js hiển thị cho khách (chân
+  trang, banner trang chủ, email liên hệ mẫu).
+- Sửa bố cục khi xoay ngang điện thoại: nút chat che nội dung (giá sản
+  phẩm, nút bấm), banner trang chủ chiếm hết màn hình khiến không thấy sản
+  phẩm nào.
+- Sửa lỗi: đổi mật khẩu sai trả về mã lỗi khiến trình duyệt hiểu nhầm là hết
+  phiên đăng nhập và tự đăng xuất ngoài ý muốn.
+
+### 1.03 — Hướng dẫn HTTPS với chứng chỉ .pem có sẵn
+- Hướng dẫn tách file `.pem` dùng chung cho HAProxy (gộp chứng chỉ + khoá
+  riêng) thành 2 file riêng để chạy HTTPS trực tiếp trên PM2.
+
+### 1.02 — Đăng nhập mạng xã hội, đặt hàng không cần tài khoản, chat đa kênh
+- Đăng nhập bằng Google/Facebook (tuỳ chọn — tự ẩn nút khi chưa cấu hình).
+- Đặt hàng không cần tài khoản (giỏ hàng lưu ở trình duyệt), tra cứu đơn
+  bằng mã đơn + số điện thoại, không cần đăng nhập.
+- Widget chat: chat trực tiếp trên web (admin trả lời trong trang quản
+  trị) cộng liên kết Zalo/Messenger (tuỳ chọn, tự ẩn khi chưa cấu hình).
+
+### 1.01 — Tối ưu hiệu năng cơ sở dữ liệu
+- Thêm index cho các cột khoá ngoại/trạng thái hay dùng để lọc (danh mục
+  sản phẩm, đơn hàng, giỏ hàng).
 
 ### 1.0.0 — Gợi ý sản phẩm theo hành vi
 - "Đã xem gần đây" (localStorage), "Sản phẩm liên quan", "Bán chạy nhất".
