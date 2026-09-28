@@ -47,6 +47,7 @@ async function loadHeroSpotlight() {
     applyThumbGradients(wrap);
     wireAddToCart(wrap);
     wrap.hidden = false;
+    document.getElementById('hero-v2').classList.remove('no-spot');
   } catch {
     wrap.hidden = true;
   }

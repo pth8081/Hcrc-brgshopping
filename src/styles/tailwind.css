@@ -119,6 +119,10 @@
   /* Two columns on desktop — rotating promo text + a static spotlight of a
      real on-sale product; stacks on narrow screens. */
   .hero-v2 { @apply grid; grid-template-columns: 1.15fr 1fr; }
+  /* No product to feature yet (empty catalog, or no on-sale/best-seller
+     item) — collapse to one column instead of leaving the spotlight's
+     grid track as blank space next to the carousel. */
+  .hero-v2.no-spot { grid-template-columns: 1fr; }
   @media (max-width: 860px) {
     .hero-v2 { grid-template-columns: 1fr; }
   }
