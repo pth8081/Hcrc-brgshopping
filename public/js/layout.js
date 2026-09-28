@@ -100,6 +100,7 @@ export async function renderLayout({ activeCategoryId } = {}) {
     </div>
     <div class="footer-copyright">
       <strong>BRG Shopping</strong> — © ${new Date().getFullYear()}. Đã đăng ký bản quyền.
+      <span id="app-version" class="app-version"></span>
     </div>
   `;
 
@@ -388,6 +389,10 @@ function initChatWidget() {
 
   apiFetch('/config/public')
     .then(({ data }) => {
+      if (data.version) {
+        const versionEl = document.getElementById('app-version');
+        if (versionEl) versionEl.textContent = `Phiên bản ${data.version}`;
+      }
       if (data.zaloUrl) {
         const el = document.getElementById('chat-channel-zalo');
         el.hidden = false;

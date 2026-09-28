@@ -32,7 +32,7 @@
 }
 
 @layer base {
-  html, body { height: 100%; }
+  html, body { min-height: 100%; }
   body {
     @apply m-0 bg-bg text-ink flex flex-col;
     font-family: var(--font-sans);
@@ -382,6 +382,7 @@
 
   .footer-copyright { @apply bg-brand-darker text-[#e9b9ba] px-5 py-[22px] pb-[34px] text-center text-[12.5px] leading-[1.8]; }
   .footer-copyright strong { @apply text-[#fce8e8]; }
+  .app-version { @apply block text-[11px] text-[#c98f90] mt-1; }
 
   .footer-payments { @apply bg-white border-t border-line px-5 py-4 flex justify-center gap-2.5 flex-wrap; }
   .pay-badge { @apply border border-line rounded-[7px] px-3 py-[5px] text-[11.5px] font-bold text-muted tracking-[0.02em]; }
