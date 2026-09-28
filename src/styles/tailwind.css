@@ -517,8 +517,13 @@
      consume the entire viewport, and the fixed-position chat button can
      land on top of primary content (price, buttons, form fields) instead
      of empty space. These rules key off height instead, so they apply
-     regardless of how wide the phone happens to be in landscape. ---------- */
-  @media (max-height: 500px) and (orientation: landscape) {
+     regardless of how wide the phone happens to be in landscape.
+
+     `hover: none` + `pointer: coarse` restricts this to touch devices —
+     without it, a desktop browser window resized short (e.g. a wide but
+     un-maximized window) matches the same height+orientation condition and
+     wrongly gets the compact phone treatment despite being desktop-width. */
+  @media (max-height: 500px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
     /* Reclaim the ~70px the always-open mobile search bar normally takes —
        back to tap-to-reveal like desktop. */
     .searchbar { max-height: 0; padding-bottom: 0; overflow: hidden; }
